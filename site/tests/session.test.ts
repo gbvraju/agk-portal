@@ -11,6 +11,8 @@ import {
   createGithubClient,
   hashState,
   openSession,
+  sealPlaintext,
+  sealSession,
   type Config,
   type ConfigName,
 } from "../src/core/index.ts";
@@ -193,4 +195,36 @@ test("REQ-102 AC8: a signed-in person with no readable project sees the fixed ph
   assert.ok(html.includes(EMPTY_PHRASE));
   assert.ok(!/gbvraju|REQ-\d|SPEC-\d|\/pull\//.test(html), "no project name");
   assert.ok(html.replace(/<[^>]*>/g, "").trim().length > 20, "not blank");
+});
+
+test("REQ-102 AC4: every cookie has its own random nonce, and a short session key is refused by name, never by value", async () => {
+  const h = harness(KEY_A);
+  const first = valueOf(setCookie(await signIn(h), SESSION_COOKIE)!);
+  const second = valueOf(setCookie(await signIn(h), SESSION_COOKIE)!);
+  assert.notEqual(first, second, "the same session sealed twice gives two different cookies");
+  const short = "short-key-value";
+  await assert.rejects(
+    () => sealSession({ token: TOKEN, expiresAt: START + HOUR }, short),
+    (error: unknown) => error instanceof Error && error.message.includes("SESSION_KEY") && !error.message.includes(short),
+  );
+});
+
+test("REQ-102 AC6: a cookie this key made but whose plaintext is not exactly a token and an expiry is signed out", async () => {
+  const good = { t: TOKEN, e: START + HOUR };
+  assert.deepEqual(await openSession(await sealPlaintext(JSON.stringify(good), KEY_A), KEY_A, START), { token: TOKEN, expiresAt: START + HOUR });
+  const bad: unknown[] = [
+    { ...good, r: REFRESH },
+    { t: TOKEN },
+    { e: START + HOUR },
+    { t: "", e: START + HOUR },
+    { t: TOKEN, e: "soon" },
+    { t: TOKEN, e: Number.NaN },
+    [TOKEN, START + HOUR],
+    "plain text",
+    null,
+  ];
+  for (const plaintext of bad) {
+    const sealed = await sealPlaintext(typeof plaintext === "string" && plaintext === "plain text" ? plaintext : JSON.stringify(plaintext), KEY_A);
+    assert.equal(await openSession(sealed, KEY_A, START), undefined, `refused: ${JSON.stringify(plaintext)}`);
+  }
 });

@@ -3,11 +3,15 @@ import { CONFIG_NAMES, requireSetting, type Clock, type Config } from "./config.
 export { CONFIG_NAMES, MissingSetting, requireSetting } from "./config.ts";
 export type { Clock, Config, ConfigName } from "./config.ts";
 export { API_HOST, AUTHORIZE_ADDRESS, TOKEN_ADDRESS, createGithubClient, guardedFetch } from "./github.ts";
-export { createApp } from "./app.ts";
+export { EMPTY_LIST_PHRASE, createApp } from "./app.ts";
 export type { AppOptions } from "./app.ts";
 export { clearCookie, readCookie, serializeCookie } from "./cookies.ts";
+export { SESSION_COOKIE, SESSION_MAX_MS, completeSignIn, openSession, sealPlaintext, sealSession, sessionCookie } from "./session.ts";
+export type { Session } from "./session.ts";
 export {
   NOTICE_COOKIE,
+  OFFER_HTML,
+  SESSION_ENDED_PHRASE,
   SIGN_IN_FAILED_PHRASE,
   STATE_COOKIE,
   constantTimeEqual,
@@ -18,7 +22,7 @@ export {
   startSignIn,
   verifyCallback,
 } from "./signin.ts";
-export type { CodeExchange } from "./github.ts";
+export type { CodeExchange, GithubClient } from "./github.ts";
 export {
   CONTENT_SECURITY_POLICY,
   FIXED_ERROR_PHRASE,

@@ -3,6 +3,7 @@
 // SHA-256 hash, in a short-lived cookie, so no cookie value is ever in a URL (SPEC-0004 rule 5). On the way back the
 // hash of the returned state is compared with the cookie in constant time. Nothing is stored on the server.
 import { clearCookie, readCookie, serializeCookie } from "./cookies.ts";
+import { base64urlEncode } from "./encoding.ts";
 import { AUTHORIZE_ADDRESS } from "./github.ts";
 import { htmlPage, redirectHome, redirectToAuthorize } from "./responses.ts";
 
@@ -13,20 +14,15 @@ export const SIGN_IN_FAILED_PHRASE = "Sign-in could not be completed. Sign in wi
 const STATE_SECONDS = 600;
 const NOTICE_SECONDS = 60;
 const NOTICE_VALUE = "signin-failed";
-const OFFER = '<p><a href="/login">Sign in with GitHub</a></p>';
-
-function base64url(bytes: Uint8Array): string {
-  let text = "";
-  for (const byte of bytes) text += String.fromCharCode(byte);
-  return btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
+export const OFFER_HTML = '<p><a href="/login">Sign in with GitHub</a></p>';
+export const SESSION_ENDED_PHRASE = "Your session has ended. Sign in with GitHub to continue.";
 
 export function newState(): string {
-  return base64url(crypto.getRandomValues(new Uint8Array(32)));
+  return base64urlEncode(crypto.getRandomValues(new Uint8Array(32)));
 }
 
 export async function hashState(state: string): Promise<string> {
-  return base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(state))));
+  return base64urlEncode(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(state))));
 }
 
 export function constantTimeEqual(a: string, b: string): boolean {
@@ -40,7 +36,7 @@ export function constantTimeEqual(a: string, b: string): boolean {
 // The home page of a visitor who is not signed in: the offer, and once the fixed phrase after a refusal.
 export function offerPage(request: Request): Response {
   const failed = readCookie(request, NOTICE_COOKIE) === NOTICE_VALUE;
-  const body = failed ? `<p>${SIGN_IN_FAILED_PHRASE}</p>\n${OFFER}` : OFFER;
+  const body = failed ? `<p>${SIGN_IN_FAILED_PHRASE}</p>\n${OFFER_HTML}` : OFFER_HTML;
   return htmlPage("Sign in", body, 200, failed ? [clearCookie(NOTICE_COOKIE)] : []);
 }
 

@@ -85,6 +85,8 @@ export function createGithubClient(dependencies: { fetch: FetchLike }) {
   };
 }
 
+export type GithubClient = ReturnType<typeof createGithubClient>;
+
 function notAllowed(reason: string): Error {
   return new Error(`the request is not allowed (${reason})`);
 }

@@ -1,28 +1,62 @@
-// The routes. A visitor who is not signed in sees the offer; the session arrives with Item 6.
+// The routes. A visitor with no cookie sees the offer; a signed-in person sees the page; a cookie that is not
+// valid is signed out (SPEC-0002 rules 8 to 10).
+import { clearCookie, readCookie } from "./cookies.ts";
+import type { GithubClient } from "./github.ts";
 import type { Core } from "./index.ts";
-import { clearCookie } from "./cookies.ts";
-import { notFoundPage, safely, stylesheet, withCookies } from "./responses.ts";
-import { STATE_COOKIE, offerPage, refusal, startSignIn, verifyCallback } from "./signin.ts";
+import { htmlPage, notFoundPage, safely, stylesheet, withCookies } from "./responses.ts";
+import { SESSION_COOKIE, completeSignIn, openSession, type Session } from "./session.ts";
+import { OFFER_HTML, SESSION_ENDED_PHRASE, STATE_COOKIE, offerPage, refusal, startSignIn, verifyCallback } from "./signin.ts";
+
+export const EMPTY_LIST_PHRASE = "No projects are available to you yet.";
 
 export interface AppOptions {
-  // Exchanges the code for the token and sets the session (Item 6). Until it is given, a valid return is refused.
+  github?: GithubClient;
+  // Replaces the code exchange (tests of the sign-in flow). Without it and without `github`, a valid return is refused.
   complete?: (code: string) => Promise<Response>;
+  // The card of each project the person can read, as HTML built by the data step (Item 7).
+  projects?: (token: string) => Promise<readonly string[]>;
+}
+
+type Reading = { kind: "none" } | { kind: "invalid" } | { kind: "valid"; session: Session };
+
+async function readSession(request: Request, core: Core): Promise<Reading> {
+  const value = readCookie(request, SESSION_COOKIE);
+  if (value === undefined) return { kind: "none" };
+  const session = await openSession(value, core.settings.sessionKey, core.now());
+  return session === undefined ? { kind: "invalid" } : { kind: "valid", session };
+}
+
+function signedInPage(cards: readonly string[]): Response {
+  const list = cards.length > 0 ? cards.join("\n") : `<p>${EMPTY_LIST_PHRASE}</p>`;
+  const form = '<form method="post" action="/signout"><button type="submit">Sign out</button></form>';
+  return htmlPage("Portal", `${list}\n${form}`);
 }
 
 export function createApp(core: Core, options: AppOptions = {}): (request: Request) => Promise<Response> {
+  const github = options.github;
+  const complete = options.complete ?? (github ? (code: string) => completeSignIn(core, github, code) : async () => refusal());
+  const projects = options.projects ?? (async () => []);
   return safely(async (request) => {
     const path = new URL(request.url).pathname;
+    if (request.method === "POST" && path === "/signout") {
+      return htmlPage("Sign in", OFFER_HTML, 200, [clearCookie(SESSION_COOKIE)]);
+    }
     if (request.method !== "GET") return notFoundPage();
     switch (path) {
-      case "/":
-        return offerPage(request);
+      case "/": {
+        const reading = await readSession(request, core);
+        if (reading.kind === "none") return offerPage(request);
+        if (reading.kind === "invalid") {
+          return htmlPage("Sign in", `<p>${SESSION_ENDED_PHRASE}</p>\n${OFFER_HTML}`, 200, [clearCookie(SESSION_COOKIE)]);
+        }
+        return signedInPage(await projects(reading.session.token));
+      }
       case "/login":
         return startSignIn(core.settings);
       case "/callback": {
         const verified = await verifyCallback(request);
         if (!verified.ok) return refusal();
-        const response = options.complete ? await options.complete(verified.code) : refusal();
-        return withCookies(response, [clearCookie(STATE_COOKIE)]);
+        return withCookies(await complete(verified.code), [clearCookie(STATE_COOKIE)]);
       }
       case "/style.css":
         return stylesheet();
