@@ -1,6 +1,6 @@
 # SPEC-0001: The build reads each project's latest facts artifact
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-101
 
