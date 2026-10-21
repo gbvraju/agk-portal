@@ -1,6 +1,6 @@
 # SPEC-0007: The Trend section shows how each measure moves week by week
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-107
 

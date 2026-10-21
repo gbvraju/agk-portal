@@ -1,6 +1,6 @@
 # SPEC-0005: The This week section follows the weekly report's rules
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-105
 

@@ -1,6 +1,6 @@
 # SPEC-0006: The Requirements section shows how each requirement stands
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-106
 
