@@ -3,10 +3,11 @@ mode = "init"
 version = "0.32.0"
 installed = "2026-10-21"
 default_branch = "main"
-test_dirs = ["tests"]
+test_dirs = ["site/tests"]
+test_patterns = ["*.test.ts"]
 lint_paths = ["scripts/agk", ".claude/hooks"]
 # The project's own tests (run by agk-project-test; exit 5 = none collected is success).
-project_tests = "[ -d tests ] || exit 0; python3 -m pytest tests -q; rc=$?; [ $rc -eq 5 ] && exit 0; exit $rc"
+project_tests = "cd site && npm ci --ignore-scripts && npm test"
 # Every criterion ACn of a done requirement needs a REQ-nnn ACn test marker: warn prints, block fails.
 ac_coverage = "warn"
 # Seconds each of the two runs of the proof check (proof.py) may take; a slow suite reads unknown.
