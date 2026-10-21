@@ -28,7 +28,7 @@ Written by the intake of one sentence, as data: "The Requirements section lists 
    | Status | "Planned." / "In progress." / "Done." / "Status not known yet." |
    | Tests | "{k} of {n} acceptance criteria have a test." / "No acceptance criteria are listed." / "Its acceptance criteria are not known yet." / "Tests not known yet." |
    | Specification | "Specification approved." / "Specification waiting for approval." / "No specification yet." / "Specification not known yet." |
-   | Proven | the phrases of SPEC-0005 rule 10 for Proven, without the title and the identifier that the line already carries: "Proven (last change #{n}: {outcome})." and "Not proven: {reasons}." with the same reasons; "Not counted yet: it is planned."; "Proof not known yet." |
+   | Proven | the phrases of SPEC-0005 rule 10 for Proven, without the title and the identifier that the line already carries: "Proven (last change #{n}: {outcome})." where {outcome} is "proven" or "skipped: declared as not changing behaviour", and "Not proven: {reasons}." with the reasons as SPEC-0005 words them ("{ACn} has no test", "it lists no acceptance criteria", "no merged change was found", "the last change (#{n}) did not prove it: {words}", "the last change (#{n}) has a proof that is not known yet: {words}", "its acceptance criteria are not known yet"), the codes only behind the link; "Not counted yet: it is planned."; "Proof not known yet." |
    | Group | "In progress ({n})" / "Planned ({n})" / "Done ({n})" / "No requirements yet." |
    | Criteria | "Acceptance criteria" / "has a test" / "no test" |
    | Hidden | "{n} kit requirements are not shown." / "1 kit requirement is not shown." |
