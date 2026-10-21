@@ -16,7 +16,7 @@ export function crc32(bytes: Uint8Array): number {
 export interface Entry {
   name: string;
   data: Uint8Array | string;
-  method?: 0 | 8;
+  method?: number;
   flags?: number;
   crc?: number;
   declaredSize?: number;

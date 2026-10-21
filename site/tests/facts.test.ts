@@ -39,7 +39,7 @@ const values: Record<ConfigName, string> = {
 const config: Config = { get: (name) => values[name] };
 const SIGNED = "https://blob.example.net/signed/archive?sig=SIGNED_SECRET_VALUE";
 
-type Answer = { status?: number; body?: string | Uint8Array; location?: string } | Error;
+type Answer = { status?: number; body?: string | Uint8Array | ReadableStream<Uint8Array>; location?: string } | Error;
 type Routes = Record<string, Answer>;
 
 function harness(routes: Routes) {
@@ -156,6 +156,8 @@ test("REQ-101 AC3: a schema other than 1, a missing schema and invalid JSON each
   }
   const bad = zip([{ name: "facts.json", data: new Uint8Array([0x7b, 0xff, 0xfe, 0x7d]) }]);
   assert.deepEqual(await factsOf(readable(505, bad)), { kind: "unknown", reason: "the file is not valid JSON" }, "invalid UTF-8");
+  const dirty = zip([{ name: "facts.json", data: new Uint8Array([...new TextEncoder().encode('{"schema":1,"x":"'), 0xff, ...new TextEncoder().encode('"}')]) }]);
+  assert.deepEqual(await factsOf(readable(505, dirty)), { kind: "unknown", reason: "the file is not valid JSON" }, "invalid UTF-8 inside a string is not repaired");
   const html = await home(harness({ ...listing, [LIST]: { body: fixture("artifacts-weeks") }, [ZIP(505)]: { status: 302, location: SIGNED }, [SIGNED]: { body: archive({ schema: 2 }) } }).app);
   assert.match(html, /<h2><a href="https:\/\/github\.com\/acme\/api">acme\/api<\/a><\/h2>\s*<p>Not known yet: the schema is not 1\.<\/p>/);
   assert.ok(html.includes("beta-co/app") && html.includes('action="/signout"'), "the page still renders");
@@ -175,13 +177,29 @@ test("REQ-101 AC3: an archive that is not exactly one facts.json, or is damaged 
     ["wrong checksum", zip([{ name: "facts.json", data: JSON.stringify(FACTS), crc: 1 }])],
     ["wrong size", zip([{ name: "facts.json", data: JSON.stringify(FACTS), declaredSize: 3 }])],
     ["truncated stream", zip([{ name: "facts.json", data: JSON.stringify(FACTS), raw: new Uint8Array(deflateRawSync(JSON.stringify(FACTS))).slice(0, 4) }])],
+    ["wrong size, stored", zip([{ name: "facts.json", data: JSON.stringify(FACTS), method: 0, declaredSize: 3 }])],
+    ["declared larger than the stream", zip([{ name: "facts.json", data: JSON.stringify(FACTS), declaredSize: JSON.stringify(FACTS).length + 5 }])],
     ["too large", zip([{ name: "facts.json", data: big, raw: new Uint8Array(deflateRawSync(big)), declaredSize: big.length }])],
     ["a bomb that lies about its size", zip([{ name: "facts.json", data: "x".repeat(10), raw: new Uint8Array(deflateRawSync(big)), declaredSize: 10 }])],
-    ["another method", (() => { const z = zip([{ name: "facts.json", data: "{}", method: 0 }]); new DataView(z.buffer).setUint16(8, 12, true); return z; })()],
+    ["another method", zip([{ name: "facts.json", data: "{}", method: 12 }])],
   ];
   for (const [name, bytes] of cases) {
     assert.deepEqual(await factsOf(readable(505, bytes)), { kind: "unknown", reason: ARCHIVE_REASON }, name);
   }
+});
+
+test("REQ-101 AC3: an answer larger than any facts archive is not read to its end", async () => {
+  let pulled = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulled += 1;
+      if (pulled > 50) controller.close();
+      else controller.enqueue(new Uint8Array(1024 * 1024));
+    },
+  });
+  const routes: Routes = { [LIST]: { body: fixture("artifacts-weeks") }, [ZIP(505)]: { status: 302, location: SIGNED }, [SIGNED]: { body } };
+  assert.deepEqual(await factsOf(routes), { kind: "unknown", reason: ARCHIVE_REASON });
+  assert.ok(pulled <= 5, `the download stops at the limit (pulled ${pulled} megabytes)`);
 });
 
 test("REQ-101 AC4: a readable repository with no unexpired agk-facts artifact says that no artifact exists for its latest week, and the page renders", async () => {

@@ -1,0 +1,75 @@
+// A minimal reader for the one archive the facts come in (SPEC-0001 rule 2): a zip holding exactly one file,
+// `facts.json`, stored or deflated. Web-standard APIs only. It trusts nothing in the archive: sizes are capped, the
+// output must match the declared size and checksum, and anything it does not understand is refused.
+export const MAX_FACTS_BYTES = 1024 * 1024;
+
+const FILE = "facts.json";
+const END_SIGNATURE = 0x06054b50;
+const CENTRAL_SIGNATURE = 0x02014b50;
+const LOCAL_SIGNATURE = 0x04034b50;
+
+const TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function crc32(bytes: Uint8Array): number {
+  let c = 0xffffffff;
+  for (const b of bytes) c = TABLE[(c ^ b) & 0xff]! ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+async function inflate(data: Uint8Array, expected: number): Promise<Uint8Array | undefined> {
+  const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  const reader = stream.getReader();
+  const out = new Uint8Array(expected);
+  let length = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (length + value.length > expected) {
+        await reader.cancel();
+        return undefined;
+      }
+      out.set(value, length);
+      length += value.length;
+    }
+  } catch {
+    return undefined;
+  }
+  return length === expected ? out : undefined;
+}
+
+// The bytes of `facts.json`, or undefined for anything that is not an archive of exactly that one file.
+export async function readFactsFile(bytes: Uint8Array): Promise<Uint8Array | undefined> {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let end = -1;
+  for (let at = bytes.length - 22; at >= Math.max(0, bytes.length - 22 - 0xffff); at -= 1) {
+    if (view.getUint32(at, true) === END_SIGNATURE) {
+      end = at;
+      break;
+    }
+  }
+  if (end < 0) return undefined;
+  const entries = view.getUint16(end + 10, true);
+  const directoryOffset = view.getUint32(end + 16, true);
+  if (entries !== 1 || directoryOffset === 0xffffffff) return undefined;
+  if (directoryOffset + 46 > end || view.getUint32(directoryOffset, true) !== CENTRAL_SIGNATURE) return undefined;
+  const flags = view.getUint16(directoryOffset + 8, true);
+  const method = view.getUint16(directoryOffset + 10, true);
+  const crc = view.getUint32(directoryOffset + 16, true);
+  const compressed = view.getUint32(directoryOffset + 20, true);
+  const size = view.getUint32(directoryOffset + 24, true);
+  const nameLength = view.getUint16(directoryOffset + 28, true);
+  const localOffset = view.getUint32(directoryOffset + 42, true);
+  if ((flags & 1) !== 0 || size > MAX_FACTS_BYTES || (method !== 0 && method !== 8)) return undefined;
+  const name = new TextDecoder().decode(bytes.subarray(directoryOffset + 46, directoryOffset + 46 + nameLength));
+  if (name !== FILE || localOffset + 30 > bytes.length || view.getUint32(localOffset, true) !== LOCAL_SIGNATURE) return undefined;
+  const start = localOffset + 30 + view.getUint16(localOffset + 26, true) + view.getUint16(localOffset + 28, true);
+  if (start + compressed > bytes.length) return undefined;
+  const stored = bytes.subarray(start, start + compressed);
+  const content = method === 0 ? (stored.length === size ? stored : undefined) : await inflate(stored, size);
+  return content !== undefined && crc32(content) === crc ? content : undefined;
+}

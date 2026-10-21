@@ -1,6 +1,7 @@
 // The per-person list of projects (SPEC-0001 rule 1) and the run-time permission check (SPEC-0004 rule 7), read from
 // the installations GitHub lists for the signed-in person with the person's own token. The list is never a file, and a
 // repository that GitHub does not return for this person is never listed, named or counted.
+import { readFacts, type FactsResult } from "./facts.ts";
 import type { GithubClient } from "./github.ts";
 
 const ACCOUNT = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
@@ -80,13 +81,20 @@ export async function listReadableRepositories(github: GithubClient, token: stri
   return { kind: "ok", repositories: [...names].sort(), refused: [...new Set(refused)].sort() };
 }
 
-// The cards of the page. The facts of each project arrive with the next item; until then a card says "Not known yet."
-export async function listProjectCards(github: GithubClient, token: string): Promise<readonly string[]> {
+// The card of one project. Its sections arrive with their own requirements; until then a card says which week's facts were
+// read, or "Not known yet" with the reason, and nothing is shown as a number that is not known.
+export function factsCard(name: string, result: FactsResult): string {
+  const heading = `<h2><a href="https://github.com/${name}">${name}</a></h2>`;
+  const line = result.kind === "facts" ? `Facts read for ${result.week}.` : `Not known yet: ${result.reason}.`;
+  return `<section>${heading}<p>${line}</p></section>`;
+}
+
+// The cards of the page: the facts of every repository the person can read, each read on its own so that one failure
+// is that card's alone.
+export async function listProjectCards(github: GithubClient, token: string, now: number): Promise<readonly string[]> {
   const listing = await listReadableRepositories(github, token);
   if (listing.kind === "unknown") return [`<p>${PROJECTS_UNREADABLE_PHRASE}</p>`];
   const notices = listing.refused.map((account) => `<p>${permissionsRefusedLine(account)}</p>`);
-  const cards = listing.repositories.map(
-    (name) => `<section><h2><a href="https://github.com/${name}">${name}</a></h2><p>Not known yet.</p></section>`,
-  );
+  const cards = await Promise.all(listing.repositories.map(async (name) => factsCard(name, await readFacts(github, token, name, now))));
   return [...notices, ...cards];
 }
