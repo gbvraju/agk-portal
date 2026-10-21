@@ -3,6 +3,8 @@
 // refused before any request is made (fail closed). A refusal names the kind of check, never an address or a value.
 export const API_HOST = "api.github.com";
 export const TOKEN_ADDRESS = "https://github.com/login/oauth/access_token";
+// The GitHub App's web-flow authorization address (verify: from memory of GitHub's documentation).
+export const AUTHORIZE_ADDRESS = "https://github.com/login/oauth/authorize";
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
