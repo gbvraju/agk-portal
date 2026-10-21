@@ -11,8 +11,8 @@ Protected classes: constitution/
 ## Context
 
 A consulting firm's engagement lead and its client cannot read pull requests, verdicts or a markdown report issue. They need a page per
-project in plain business words. Each project's weekly report already publishes an AGK facts document as a workflow artifact named
-`agk-facts-<week>`. This slice is read-only, covers public repositories only, and starts with `gbvraju/agk` and `gbvraju/cors` listed
+project in plain business words. Each project's weekly report will publish its AGK facts document as a workflow artifact named
+`agk-facts-<week>` (agk SPEC-0019, being built; a project gets it when it upgrades to that kit version). This slice is read-only, covers public repositories only, and starts with `gbvraju/agk` and `gbvraju/cors` listed
 in one config file. It is TypeScript, a static site built by a GitHub Actions workflow and published to GitHub Pages. The ruleset for
 the default branch is the one ADR-0001 records; this charter neither restates nor changes it.
 
@@ -43,3 +43,4 @@ The first brief item proves it with a throwaway workflow before anything depends
 - 2026-10-21: workflow-token access to another public repository's artifacts is unconfirmed (verify); the throwaway proof settles it.
 - 2026-10-21: `gbvraju/agk` does not publish `agk-facts-<week>` until its own build lands; the second proof waits for it.
 - 2026-10-21: ADR-0001 is still Proposed; the maintainers accept it in a pull request of its own.
+- 2026-10-21: gbvraju/cors is held at its current kit until 2026-11-02 and does not publish the artifact before its upgrade; until then its card shows 'not known yet' (due 2026-11-30).
