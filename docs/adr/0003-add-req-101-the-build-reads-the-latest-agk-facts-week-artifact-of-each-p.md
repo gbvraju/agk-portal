@@ -1,6 +1,6 @@
 # ADR-0003: Add REQ-101: The build reads each project's latest facts artifact
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: SPEC-0001
