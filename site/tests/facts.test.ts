@@ -200,6 +200,8 @@ test("REQ-101 AC3: an answer larger than any facts archive is not read to its en
   const routes: Routes = { [LIST]: { body: fixture("artifacts-weeks") }, [ZIP(505)]: { status: 302, location: SIGNED }, [SIGNED]: { body } };
   assert.deepEqual(await factsOf(routes), { kind: "unknown", reason: ARCHIVE_REASON });
   assert.ok(pulled <= 5, `the download stops at the limit (pulled ${pulled} megabytes)`);
+  const empty: Routes = { [LIST]: { body: fixture("artifacts-weeks") }, [ZIP(505)]: { status: 302, location: SIGNED }, [SIGNED]: {} };
+  assert.deepEqual(await factsOf(empty), { kind: "unknown", reason: ARCHIVE_REASON }, "an answer with no body is an unreadable archive");
 });
 
 test("REQ-101 AC4: a readable repository with no unexpired agk-facts artifact says that no artifact exists for its latest week, and the page renders", async () => {
