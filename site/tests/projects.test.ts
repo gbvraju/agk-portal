@@ -110,9 +110,16 @@ test("REQ-101 AC6: a list that cannot be read is said, with no partial list", as
 });
 
 test("REQ-104 AC7: an installation that grants more than Actions read and Metadata read refuses the person, shows no project and adds no call", async () => {
-  for (const name of ["installations-extra-permission", "installations-write-permission", "installations-missing-permission"]) {
+  const lateKey = fixture("installations-ok").replace('"metadata":"read"}', '"metadata":"read","pull_requests":"read"}');
+  const variants: [string, string][] = [
+    ["extra permission (contents)", fixture("installations-extra-permission")],
+    ["extra permission sorting after metadata", lateKey],
+    ["write permission", fixture("installations-write-permission")],
+    ["missing permission", fixture("installations-missing-permission")],
+  ];
+  for (const [name, body] of variants) {
     const { app, calls } = harness({
-      "/user/installations?per_page=100&page=1": { body: fixture(name) },
+      "/user/installations?per_page=100&page=1": { body },
       "/user/installations/1001/repositories?per_page=100&page=1": { body: fixture("repositories-1001-page1") },
       "/user/installations/1002/repositories?per_page=100&page=1": { body: fixture("repositories-1002-page1") },
     });
@@ -141,5 +148,17 @@ test("REQ-101 AC7: every request is a GET to the GitHub API with the person's ow
   }
   for (const file of readdirSync(coreDir)) {
     assert.ok(!/anthropic|claude|openai|gemini|\bllm\b/i.test(readFileSync(resolve(coreDir, file), "utf8")), `${file} names no model or model credential`);
+  }
+});
+
+test("REQ-101 AC6: a repository name that is not owner/name is not shown, and the list reads as not known", async () => {
+  for (const name of ['"><script>x()</script>/y', "no-slash", "a b/c", "a/b/c", 42]) {
+    const h = harness({
+      "/user/installations?per_page=100&page=1": { body: fixture("installations-write-permission").replace('"write"', '"read"') },
+      "/user/installations/1001/repositories?per_page=100&page=1": { body: JSON.stringify({ total_count: 1, repositories: [{ full_name: name }] }) },
+    });
+    const html = await home(h.app);
+    assert.ok(html.includes(PROJECTS_UNREADABLE_PHRASE), `${JSON.stringify(name)} makes the list unknown`);
+    assert.ok(!html.includes("<script>x()"), "never put into the page");
   }
 });
