@@ -1,6 +1,6 @@
 # ADR-0006: Access model: GitHub App sign-in, a small server and a portable core
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: ADR-0001, ADR-0003, ADR-0005
@@ -39,3 +39,4 @@ ADR-0002 chartered a read-only static site over public repositories, built by a 
 - 2026-10-21: that a GitHub App user-to-server token with Actions read and Metadata read can list and download an artifact of a private repository is unconfirmed (verify); the proof of SPEC-0001 rule 9 needs a private repository with an `agk-facts-<week>` artifact, which the maintainers provide (due 2026-11-30).
 - 2026-10-21: the deploy secret and the way the Cloudflare Workers adapter is published are not decided (due 2026-11-30).
 - 2026-10-21: the three intakes (sign-in and session, portable core, security defaults) are not yet requirements (due 2026-11-30).
+- 2026-10-21: the server fetches every readable repository's artifact on each request; with many projects the page may be slow or meet GitHub's rate limit for the person's token. Measure on the first live page; any cache must still store nothing beyond the session (due 2026-12-31).
