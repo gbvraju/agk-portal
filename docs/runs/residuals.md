@@ -9,6 +9,7 @@ Each open line is `- <source> | <text> | (due YYYY-MM-DD) | open`. The source is
 - docs/runs/app-access-proof.md 2026-10-21 | the test installation is on All repositories; a client installs on selected repositories only (least access), which these runs did not test (verify) | (due 2026-12-31) | open
 - docs/requirements.md 2026-10-21 | REQ-107 AC2 names the measure "changes sent back or merged late"; that is a label only, the heading rule of SPEC-0007 ("Changes sent back or merged before review") governs, and no requirement text is changed | (due 2026-12-31) | open
 - site/src/core/responses.ts 2026-10-21 | assertAllowed scans the whole page text, so plain text such as a requirement title containing "style =" or " onX=" would refuse a legitimate page; the check should inspect tags and attributes, not escaped text | (due 2026-12-31) | open
+- site/src/core/app.ts 2026-10-21 | POST /signout does not check that the request came from this site, so another site can sign a visitor out (no data exposed); check the Origin header on POST | (due 2026-12-31) | open
 
 ## Closed (not findings)
 
