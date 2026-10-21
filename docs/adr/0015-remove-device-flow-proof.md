@@ -1,6 +1,6 @@
 # ADR-0015: The throwaway access-proof workflow is removed
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: ADR-0006, ADR-0010
