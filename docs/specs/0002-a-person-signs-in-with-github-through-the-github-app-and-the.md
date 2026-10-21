@@ -10,7 +10,7 @@ Written by the intake of one sentence, as data: "A person signs in with GitHub t
 ## Rules
 
 1. **The sign-in offer.** A visitor who is not signed in sees only the sign-in offer: the fixed phrase "Sign in with GitHub" as a link that starts rule 2. The response names no project, no repository and no organisation.
-2. **Starting sign-in.** The server creates a random `state` value of at least 128 bits with Web Crypto, binds it to the visitor's browser in a short-lived cookie (10 minutes, `Secure`, `HttpOnly`, `SameSite=Lax`, no `Domain`) and redirects to the GitHub App's authorization address with the App's client id, the callback address and the `state`. Nothing is stored on the server.
+2. **Starting sign-in.** The server creates a random `state` value of at least 128 bits with Web Crypto, binds it to the visitor's browser in a short-lived cookie named `__Host-state` (10 minutes, `Path=/`, `Secure`, `HttpOnly`, `SameSite=Lax`, no `Domain`; the `__Host-` prefix requires `Secure`, `Path=/` and no `Domain`) and redirects to the GitHub App's authorization address with the App's client id, the callback address and the `state`. Nothing is stored on the server.
 3. **The return.** On the callback the server compares the `state` of the request with the one in the browser's cookie in constant time. A missing or different `state`, a missing cookie or a missing `code` makes the server refuse: no request to GitHub is made, no session is set, the short-lived cookie is cleared, and the visitor sees the sign-in offer with the fixed phrase "Sign-in could not be completed. Sign in with GitHub to try again."
 4. **The token.** With a matching `state` the server exchanges the `code` for the user-to-server token using the App's client id and client secret, the secret coming from the configuration interface of ADR-0006 decision 4 and never from the code. This exchange is the one POST the server sends to GitHub; it creates no data at GitHub and is not a write call in the sense of the project rules (Q-S0002-1). The server keeps the token and its expiry and nothing else of the answer: a refresh token, if the answer holds one, is dropped, never stored and never put in the cookie.
 5. **The cookie.** One cookie named `__Host-session` holds the encrypted, signed session: AES-256-GCM through Web Crypto with a random 96-bit nonce for each cookie, the authentication tag being the signature, under the one session key that the maintainers set in the host's secret store and the adapter hands to the core (ADR-0006 decisions 4 and 6). The plaintext is the token and its expiry and nothing else. The flags are `Secure`, `HttpOnly` and `SameSite=Lax`, with `Path=/` and no `Domain`. The cookie is set only in a response that completes a successful sign-in.
@@ -24,7 +24,7 @@ Written by the intake of one sentence, as data: "A person signs in with GitHub t
 ## Tests
 
 - Rule 1: a request with no cookie is answered with the sign-in offer and no project name; REQ-102 AC1.
-- Rule 2: the redirect carries a state of at least 128 bits, and the browser cookie that holds it has the flags and a 10-minute lifetime; REQ-102 AC2.
+- Rule 2: the redirect carries a state of at least 128 bits, and the browser cookie that holds it is named with the `__Host-` prefix and has `Path=/`, the flags and a 10-minute lifetime; REQ-102 AC2.
 - Rule 3: a missing state, a different state, a missing cookie and a missing code each give the refusal, with no request to GitHub, no session cookie and the short-lived cookie cleared; REQ-102 AC3.
 - Rules 4 to 6: a recorded token answer gives one cookie whose plaintext is the token and its expiry only, with the flags, the smaller expiry, and no refresh token even when the answer holds one; REQ-102 AC4.
 - Rule 7: a cookie made by one instance is read by a second instance that shares only the key, and the sessions code reads and writes no storage; REQ-102 AC5.
@@ -47,3 +47,6 @@ REQ-102 AC1 to AC3: *only the sign-in offer is seen until GitHub has confirmed t
 ## Open questions
 
 - Q-S0002-1 The code-for-token exchange is a POST to GitHub, while the project rules say the server makes no write call to GitHub. The criteria assume this one POST, to the token address only, creates no data at GitHub and is allowed, and that the no-write-call test of the security-defaults intake allow-lists exactly that address and nothing else.
+  Ruled 2026-10-21 by the maintainers: as read. The code-for-token exchange is the one allowed POST, allow-listed by exact address; SPEC-0004 rule 8 enforces it and no other POST is allowed.
+
+Ruled 2026-10-21 by the maintainers: the fixed phrases of rules 1, 3, 8 and 10 are accepted as written. Rule 2 is tightened: the state cookie is also `__Host-` prefixed, and both cookies carry `Path=/` (applied to the rule text above; the spec is still Draft).
