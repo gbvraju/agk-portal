@@ -3,14 +3,20 @@
 // repository that GitHub does not return for this person is never listed, named or counted.
 import type { GithubClient } from "./github.ts";
 
-export const PERMISSIONS_REFUSED_PHRASE = "This GitHub App has more access than this portal allows. Ask your administrator to review it.";
+const ACCOUNT = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
+
+// The fixed line for one installation that grants more than the two reads (SPEC-0004 rule 7, read per installation).
+export function permissionsRefusedLine(account: string): string {
+  return `The GitHub App installed on ${account} has more access than this portal allows. Ask its administrator to review it.`;
+}
 export const PROJECTS_UNREADABLE_PHRASE = "Projects could not be read: not known yet.";
 
 const PER_PAGE = 100;
 const MAX_PAGES = 10;
 const FULL_NAME = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
-export type Listing = { kind: "ok"; repositories: string[] } | { kind: "permissions" } | { kind: "unknown" };
+// `refused` lists the accounts of the installations that were not read because they grant more than the two reads.
+export type Listing = { kind: "ok"; repositories: string[]; refused: string[] } | { kind: "unknown" };
 
 // Every page of a listing until the count GitHub states is reached or a page is empty. Anything else is unknown.
 async function allPages(github: GithubClient, token: string, path: string, key: string): Promise<unknown[] | undefined> {
@@ -30,9 +36,10 @@ async function allPages(github: GithubClient, token: string, path: string, key: 
     if (!Array.isArray(items)) return undefined;
     collected.push(...items);
     const total = record["total_count"];
-    if (items.length === 0 || (typeof total === "number" && collected.length >= total)) break;
+    if (items.length === 0 || (typeof total === "number" && collected.length >= total)) return collected;
   }
-  return collected;
+  // The cap ended the listing before the count GitHub states: it is not known, never a partial list.
+  return undefined;
 }
 
 // Exactly Actions read and Metadata read, and nothing else (the field name is from memory: verify).
@@ -46,12 +53,19 @@ export async function listReadableRepositories(github: GithubClient, token: stri
   const installations = await allPages(github, token, "/user/installations", "installations");
   if (installations === undefined) return { kind: "unknown" };
   const ids: number[] = [];
+  const refused: string[] = [];
   for (const installation of installations) {
     if (typeof installation !== "object" || installation === null) return { kind: "unknown" };
-    const { id, permissions } = installation as Record<string, unknown>;
+    const { id, permissions, account } = installation as Record<string, unknown>;
     if (typeof id !== "number" || !Number.isInteger(id)) return { kind: "unknown" };
-    if (!onlyTheTwoReads(permissions)) return { kind: "permissions" };
-    ids.push(id);
+    if (onlyTheTwoReads(permissions)) {
+      ids.push(id);
+      continue;
+    }
+    // An over-granted installation contributes no repository, and its repositories are not fetched.
+    const login = typeof account === "object" && account !== null ? (account as Record<string, unknown>)["login"] : undefined;
+    if (typeof login !== "string" || !ACCOUNT.test(login)) return { kind: "unknown" };
+    refused.push(login);
   }
   const names = new Set<string>();
   for (const id of ids) {
@@ -63,15 +77,16 @@ export async function listReadableRepositories(github: GithubClient, token: stri
       names.add(name);
     }
   }
-  return { kind: "ok", repositories: [...names].sort() };
+  return { kind: "ok", repositories: [...names].sort(), refused: [...new Set(refused)].sort() };
 }
 
 // The cards of the page. The facts of each project arrive with the next item; until then a card says "Not known yet."
 export async function listProjectCards(github: GithubClient, token: string): Promise<readonly string[]> {
   const listing = await listReadableRepositories(github, token);
-  if (listing.kind === "permissions") return [`<p>${PERMISSIONS_REFUSED_PHRASE}</p>`];
   if (listing.kind === "unknown") return [`<p>${PROJECTS_UNREADABLE_PHRASE}</p>`];
-  return listing.repositories.map(
+  const notices = listing.refused.map((account) => `<p>${permissionsRefusedLine(account)}</p>`);
+  const cards = listing.repositories.map(
     (name) => `<section><h2><a href="https://github.com/${name}">${name}</a></h2><p>Not known yet.</p></section>`,
   );
+  return [...notices, ...cards];
 }

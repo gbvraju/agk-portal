@@ -153,7 +153,11 @@ test("REQ-104 AC7: one over-granted installation does not hide the others", asyn
 test("REQ-104 AC7: an over-granted installation whose account cannot be named reads as not known, never as a guess", async () => {
   for (const login of ['"><script>x()</script>', "a b", ""]) {
     const body = fixture("installations-extra-permission").replace('"login":"beta-co"', `"login":${JSON.stringify(login)}`);
-    const { app } = harness({ "/user/installations?per_page=100&page=1": { body } });
+    const { app } = harness({
+      "/user/installations?per_page=100&page=1": { body },
+      "/user/installations/1001/repositories?per_page=100&page=1": { body: fixture("repositories-1001-page1") },
+      "/user/installations/1001/repositories?per_page=100&page=2": { body: fixture("repositories-1001-page2") },
+    });
     const html = await home(app);
     assert.ok(html.includes(PROJECTS_UNREADABLE_PHRASE), JSON.stringify(login));
     assert.ok(!html.includes("<script>x()"));
