@@ -12,6 +12,7 @@ Each open line is `- <source> | <text> | (due YYYY-MM-DD) | open`. The source is
 - site/src/core/app.ts 2026-10-21 | POST /signout does not check that the request came from this site, so another site can sign a visitor out (no data exposed); check the Origin header on POST | (due 2026-12-31) | open
 - site/src/core/facts.ts 2026-10-21 | each repository costs at least two calls to GitHub plus the download, all in one request of the page; a person with many repositories can exceed a host's limit on outgoing requests per request (for Cloudflare Workers, 50 on the free plan: verify), and a repository whose reading the host refuses would show as the fixed request-failed reason; measure at the first live sign-in (Item 9) and decide a limit by an ADR | (due 2026-12-31) | open
 - site/src/core/facts.ts 2026-10-21 | the page reads the artifacts of every repository on every request, with no cache, because the server holds no storage (SPEC-0002 rule 5); a per-person cache would need its own ruling | (due 2026-12-31) | open
+- site/src/adapters/cloudflare/index.ts 2026-10-21 | the Workers module shape `export default { fetch(request, env, context) }`, a global `fetch` and `Date.now` inside a Worker, and that an env binding is an object while a secret and a variable are text are from memory of Cloudflare's documentation and were run only in Node with a fake env (verify); the first deploy (Item 9) confirms them | (due 2026-12-31) | open
 
 ## Closed (not findings)
 
