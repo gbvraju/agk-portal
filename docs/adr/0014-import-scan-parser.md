@@ -1,6 +1,6 @@
 # ADR-0014: The import scan reads syntax trees through a pinned 5.x typescript
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: ADR-0005, ADR-0008
