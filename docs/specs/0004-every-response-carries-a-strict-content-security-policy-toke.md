@@ -1,6 +1,6 @@
 # SPEC-0004: Responses are secure by default and the server never writes to GitHub
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-104
 

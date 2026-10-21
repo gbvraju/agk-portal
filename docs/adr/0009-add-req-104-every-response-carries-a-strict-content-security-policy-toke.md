@@ -1,6 +1,6 @@
 # ADR-0009: Add REQ-104: Responses are secure by default and the server never writes to GitHub
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: SPEC-0004

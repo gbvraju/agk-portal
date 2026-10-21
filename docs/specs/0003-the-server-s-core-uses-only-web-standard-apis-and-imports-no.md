@@ -1,6 +1,6 @@
 # SPEC-0003: The core is portable and each host has one thin adapter
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-103
 

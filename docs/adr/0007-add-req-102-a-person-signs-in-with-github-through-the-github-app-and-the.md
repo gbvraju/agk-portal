@@ -1,6 +1,6 @@
 # ADR-0007: Add REQ-102: A person signs in with GitHub and keeps a stateless session
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: SPEC-0002

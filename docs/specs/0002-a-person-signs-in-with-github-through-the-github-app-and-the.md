@@ -1,6 +1,6 @@
 # SPEC-0002: A person signs in with GitHub and keeps a stateless session
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-102
 
