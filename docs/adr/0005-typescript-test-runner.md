@@ -1,6 +1,6 @@
 # ADR-0005: The project's tests are TypeScript, run by npm
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: ADR-0001, ADR-0002, ADR-0004
