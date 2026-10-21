@@ -1,6 +1,6 @@
 # ADR-0010: The access proof is a throwaway workflow using the App's device flow
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: ADR-0006, ADR-0009
