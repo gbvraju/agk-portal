@@ -36,7 +36,7 @@ function signedInPage(cards: readonly string[]): Response {
 export function createApp(core: Core, options: AppOptions = {}): (request: Request) => Promise<Response> {
   const github = options.github;
   const complete = options.complete ?? (github ? (code: string) => completeSignIn(core, github, code) : async () => refusal());
-  const projects = options.projects ?? (github ? (token: string) => listProjectCards(github, token) : async () => []);
+  const projects = options.projects ?? (github ? (token: string) => listProjectCards(github, token, core.now()) : async () => []);
   return safely(async (request) => {
     const path = new URL(request.url).pathname;
     if (request.method === "POST" && path === "/signout") {

@@ -72,7 +72,7 @@ test("REQ-101 AC6: the page lists exactly the repositories GitHub returns for th
   assert.ok(!/\b\d+ (repositories|projects|installations)\b/i.test(html) && !html.includes("total_count"), "nothing is counted");
   assert.ok(!html.includes(EMPTY_LIST_PHRASE) && !html.includes(PROJECTS_UNREADABLE_PHRASE) && !html.includes("has more access than this portal allows"));
   assert.deepEqual(
-    calls.map((c) => c.url),
+    calls.map((c) => c.url).filter((url) => url.includes("/user/")),
     [
       "https://api.github.com/user/installations?per_page=100&page=1",
       "https://api.github.com/user/installations/1001/repositories?per_page=100&page=1",

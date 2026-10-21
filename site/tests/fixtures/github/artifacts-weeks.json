@@ -1,0 +1,10 @@
+{"total_count":9,"artifacts":[
+{"id":504,"name":"build-log","expired":false,"created_at":"2026-10-21T08:00:00Z","expires_at":"2027-03-01T00:00:00Z"},
+{"id":506,"name":"agk-facts-2026-W44","expired":true,"created_at":"2026-10-30T08:00:00Z","expires_at":"2027-03-01T00:00:00Z"},
+{"id":503,"name":"agk-facts-2026-W43","expired":false,"created_at":"2026-10-23T08:00:00Z","expires_at":"2026-12-01T00:00:00Z"},
+{"id":505,"name":"agk-facts-2026-W42","expired":false,"created_at":"2026-10-20T09:00:00Z","expires_at":"2027-03-01T00:00:00Z"},
+{"id":502,"name":"agk-facts-2026-W42","expired":false,"created_at":"2026-10-19T08:00:00Z","expires_at":"2027-03-01T00:00:00Z"},
+{"id":501,"name":"agk-facts-2026-W41","expired":false,"created_at":"2026-10-12T08:00:00Z","expires_at":"2027-03-01T00:00:00Z"},
+{"id":507,"name":"agk-facts-2026-W42-extra","expired":false,"created_at":"2026-10-24T08:00:00Z","expires_at":"2027-03-01T00:00:00Z"},
+{"id":508,"name":"agk-facts-latest","expired":false,"created_at":"2026-10-25T08:00:00Z","expires_at":"2027-03-01T00:00:00Z"},
+{"id":509,"name":"AGK-FACTS-2026-W45","expired":false,"created_at":"2026-10-26T08:00:00Z","expires_at":"2027-03-01T00:00:00Z"}]}
