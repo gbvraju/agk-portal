@@ -2,16 +2,34 @@ import { CONFIG_NAMES, requireSetting, type Clock, type Config } from "./config.
 
 export { CONFIG_NAMES, MissingSetting, requireSetting } from "./config.ts";
 export type { Clock, Config, ConfigName } from "./config.ts";
-export { API_HOST, TOKEN_ADDRESS, createGithubClient, guardedFetch } from "./github.ts";
+export { API_HOST, AUTHORIZE_ADDRESS, TOKEN_ADDRESS, createGithubClient, guardedFetch } from "./github.ts";
+export { createApp } from "./app.ts";
+export type { AppOptions } from "./app.ts";
+export { clearCookie, readCookie, serializeCookie } from "./cookies.ts";
+export {
+  NOTICE_COOKIE,
+  SIGN_IN_FAILED_PHRASE,
+  STATE_COOKIE,
+  constantTimeEqual,
+  hashState,
+  newState,
+  offerPage,
+  refusal,
+  startSignIn,
+  verifyCallback,
+} from "./signin.ts";
 export type { CodeExchange } from "./github.ts";
 export {
   CONTENT_SECURITY_POLICY,
   FIXED_ERROR_PHRASE,
   errorPage,
   htmlPage,
+  notFoundPage,
   redirectHome,
+  redirectToAuthorize,
   safely,
   stylesheet,
+  withCookies,
 } from "./responses.ts";
 
 export interface Settings {
