@@ -1,6 +1,6 @@
 # ADR-0004: Upgrade agk from 0.31.0 to 0.32.0
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: ADR-0001, ADR-0003
