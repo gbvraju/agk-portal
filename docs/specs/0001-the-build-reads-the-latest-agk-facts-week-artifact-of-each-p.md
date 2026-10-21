@@ -35,9 +35,9 @@ REQ-101 AC1 and AC2: *a project's facts reach the page as published.* Rules 2 an
 
 ## Residual
 
-- 2026-10-21: agk SPEC-0019 is Draft and not built; a project has the artifact only after it upgrades to that kit version, so `gbvraju/cors` shows 'not known yet' until then (due 2026-11-30).
+- 2026-10-21: agk SPEC-0019 is Approved and being built; a project has the artifact only after it upgrades to that kit version, so `gbvraju/cors` shows 'not known yet' until then (due 2026-11-30).
 - 2026-10-21: the proof on `gbvraju/agk` waits for its first `agk-facts-<week>` artifact (due 2026-11-30).
-- 2026-10-21: the intake script and its check expect the next free id to be REQ-004; REQ-101 is used per the requirements.md reservation, so `intake.py check` is expected to refuse on the id and the ADR name until the kit defect is fixed (due 2026-11-30).
+- 2026-10-21: the kit's REQ-004 defect was fixed in agk 0.32.0 (ADR-0004); intake.py check passed on REQ-101 (closed).
 
 ## Open questions
 
