@@ -23,6 +23,10 @@ export function guardedFetch(send: FetchLike): FetchLike {
     const carriesToken = new Headers(init?.headers).has("authorization");
     if (method === "GET") {
       if (carriesToken && url.hostname !== API_HOST) return refuse("credential");
+      // A request that carries a credential must not follow redirects: a runtime may carry the Authorization header
+      // to the redirect target, and the artifact download answers 302 to a storage host. The caller reads the
+      // Location and fetches it without a credential.
+      if (carriesToken && init?.redirect !== "manual") return refuse("redirect");
     } else if (method === "POST") {
       if (input !== TOKEN_ADDRESS || carriesToken) return refuse("method");
     } else {
@@ -50,6 +54,7 @@ export function createGithubClient(dependencies: { fetch: FetchLike }) {
       }
       return guarded(`https://${API_HOST}${path}`, {
         method: "GET",
+        redirect: "manual",
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/vnd.github+json",

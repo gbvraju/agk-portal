@@ -154,7 +154,7 @@ test("REQ-104 AC8: GET and the one sign-in POST are sent; every other method and
     sent += 1;
     return new Response("{}");
   });
-  await guarded("https://api.github.com/user/installations", { method: "GET", headers: { Authorization: `Bearer ${TOKEN}` } });
+  await guarded("https://api.github.com/user/installations", { method: "GET", redirect: "manual", headers: { Authorization: `Bearer ${TOKEN}` } });
   await guarded("https://objects.example.net/a.zip");
   await guarded(TOKEN_ADDRESS, { method: "POST", body: "client_id=x" });
   assert.equal(sent, 3);
@@ -177,4 +177,47 @@ test("REQ-104 AC8: GET and the one sign-in POST are sent; every other method and
   }
   assert.equal(sent, 3, "nothing was sent for a refused call");
   assert.deepEqual(filesUsingIdentifier(coreDir, "fetch"), ["github.ts"], "fetch is used in the one guard file only");
+});
+
+test("REQ-104 AC8: a credentialed request must not follow redirects, because a runtime may carry the token to the redirect target", async () => {
+  let sent = 0;
+  const guarded = guardedFetch(async () => {
+    sent += 1;
+    return new Response("{}");
+  });
+  const headers = { Authorization: `Bearer ${TOKEN}` };
+  for (const redirect of [undefined, "follow", "error"] as const) {
+    await assert.rejects(
+      () => guarded("https://api.github.com/user", { method: "GET", headers, ...(redirect ? { redirect } : {}) }),
+      /not allowed/,
+      `a credentialed request with redirect ${String(redirect)} must be refused`,
+    );
+  }
+  assert.equal(sent, 0, "nothing was sent");
+  await guarded("https://api.github.com/user", { method: "GET", headers, redirect: "manual" });
+  assert.equal(sent, 1, "manual is allowed");
+  await guarded("https://objects.example.net/a.zip", { method: "GET" });
+  assert.equal(sent, 2, "a request without a credential may follow redirects");
+});
+
+test("REQ-104 AC5: the client never follows a redirect with the token; the download reads the Location and fetches it without a credential", async () => {
+  const calls: { url: string; init: RequestInit | undefined }[] = [];
+  const signed = "https://objects.example.net/signed/abc?sig=fixture-signature";
+  const client = createGithubClient({
+    fetch: async (url, init) => {
+      calls.push({ url, init });
+      if (url.startsWith("https://api.github.com/")) return new Response(null, { status: 302, headers: { Location: signed } });
+      return new Response("zip", { status: 200 });
+    },
+  });
+  const first = await client.get("/repos/o/r/actions/artifacts/1/zip", TOKEN);
+  assert.equal(calls[0]!.init?.redirect, "manual", "the credentialed call asks not to follow");
+  assert.equal(first.status, 302, "the redirect is returned, not followed");
+  const location = first.headers.get("location");
+  assert.equal(location, signed);
+  const second = await client.getSigned(location as string);
+  assert.equal(second.status, 200);
+  assert.equal(calls.length, 2);
+  assert.equal(new Headers(calls[1]!.init?.headers).get("authorization"), null, "the signed address gets no credential");
+  assert.ok(!calls[1]!.url.includes(TOKEN));
 });
