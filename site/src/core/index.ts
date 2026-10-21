@@ -6,6 +6,8 @@ export { API_HOST, AUTHORIZE_ADDRESS, TOKEN_ADDRESS, createGithubClient, guarded
 export { EMPTY_LIST_PHRASE, createApp } from "./app.ts";
 export type { AppOptions } from "./app.ts";
 export { clearCookie, readCookie, serializeCookie } from "./cookies.ts";
+export { PROJECTS_UNREADABLE_PHRASE, listProjectCards, listReadableRepositories, permissionsRefusedLine } from "./projects.ts";
+export type { Listing } from "./projects.ts";
 export { SESSION_COOKIE, SESSION_MAX_MS, completeSignIn, openSession, sealPlaintext, sealSession, sessionCookie } from "./session.ts";
 export type { Session } from "./session.ts";
 export {

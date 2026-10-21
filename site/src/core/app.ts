@@ -4,6 +4,7 @@ import { clearCookie, readCookie } from "./cookies.ts";
 import type { GithubClient } from "./github.ts";
 import type { Core } from "./index.ts";
 import { htmlPage, notFoundPage, safely, stylesheet, withCookies } from "./responses.ts";
+import { listProjectCards } from "./projects.ts";
 import { SESSION_COOKIE, completeSignIn, openSession, type Session } from "./session.ts";
 import { OFFER_HTML, SESSION_ENDED_PHRASE, STATE_COOKIE, offerPage, refusal, startSignIn, verifyCallback } from "./signin.ts";
 
@@ -13,7 +14,7 @@ export interface AppOptions {
   github?: GithubClient;
   // Replaces the code exchange (tests of the sign-in flow). Without it and without `github`, a valid return is refused.
   complete?: (code: string) => Promise<Response>;
-  // The card of each project the person can read, as HTML built by the data step (Item 7).
+  // The card of each project the person can read, as HTML; by default the per-person list read from GitHub.
   projects?: (token: string) => Promise<readonly string[]>;
 }
 
@@ -35,7 +36,7 @@ function signedInPage(cards: readonly string[]): Response {
 export function createApp(core: Core, options: AppOptions = {}): (request: Request) => Promise<Response> {
   const github = options.github;
   const complete = options.complete ?? (github ? (code: string) => completeSignIn(core, github, code) : async () => refusal());
-  const projects = options.projects ?? (async () => []);
+  const projects = options.projects ?? (github ? (token: string) => listProjectCards(github, token) : async () => []);
   return safely(async (request) => {
     const path = new URL(request.url).pathname;
     if (request.method === "POST" && path === "/signout") {
