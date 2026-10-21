@@ -1,0 +1,99 @@
+# THROWAWAY. The access proof of SPEC-0001 rule 9 (amended by ADR-0006): can a user-to-server token of the GitHub App
+# (Actions read, Metadata read) list and download an artifact of a PRIVATE repository? It uses the App's device flow, so
+# it needs only the public client id (the repository variable APP_CLIENT_ID) and no secret. The maintainer enters the
+# printed code on github.com. The token lives in memory only and is masked before any use. This workflow is removed in the
+# pull request that builds the real data step (ruling Q-B1-3). Run it by hand from the Actions tab after it is merged.
+# It writes nothing to GitHub. Every claim about GitHub's addresses and answers below is from memory (verify).
+name: app-device-flow-proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "The private repository to read, as OWNER/REPO (it needs any recent artifact and the App installed)"
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Device flow, list, download
+        shell: bash
+        env:
+          APP_CLIENT_ID: ${{ vars.APP_CLIENT_ID }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          say() { printf '%s\n' "$*"; }
+          if [ -z "${APP_CLIENT_ID}" ]; then say "stop: the repository variable APP_CLIENT_ID is not set"; exit 1; fi
+          if ! printf '%s' "${TARGET}" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then say "stop: the target is not OWNER/REPO"; exit 1; fi
+
+          # 1. Ask the App for a device code. Only the public client id is sent.
+          out=$(curl -sS -X POST -H "Accept: application/json" -d "client_id=${APP_CLIENT_ID}" -w $'\n%{http_code}' https://github.com/login/device/code)
+          status=${out##*$'\n'}; body=${out%$'\n'*}
+          say "call: POST /login/device/code -> ${status}"
+          if [ "${status}" != "200" ]; then say "stop: the device code was refused"; exit 1; fi
+          DEVICE_CODE=$(jq -r '.device_code // empty' <<<"${body}")
+          echo "::add-mask::${DEVICE_CODE}"
+          user_code=$(jq -r '.user_code // empty' <<<"${body}")
+          verify_uri=$(jq -r '.verification_uri // empty' <<<"${body}")
+          interval=$(jq -r '.interval // 5' <<<"${body}")
+          expires=$(jq -r '.expires_in // 900' <<<"${body}")
+          if [ -z "${DEVICE_CODE}" ] || [ -z "${user_code}" ]; then say "stop: the answer holds no device code or user code"; exit 1; fi
+          say "user code: ${user_code}"
+          say "verify at: ${verify_uri}"
+
+          # 2. Poll until the maintainer has entered the code, or the code ends.
+          deadline=$(( $(date +%s) + expires ))
+          USER_TOKEN=""
+          while [ "$(date +%s)" -lt "${deadline}" ]; do
+            sleep "${interval}"
+            out=$(curl -sS -X POST -H "Accept: application/json" -d "client_id=${APP_CLIENT_ID}" -d "device_code=${DEVICE_CODE}" -d "grant_type=urn:ietf:params:oauth:grant-type:device_code" -w $'\n%{http_code}' https://github.com/login/oauth/access_token)
+            status=${out##*$'\n'}; body=${out%$'\n'*}
+            err=$(jq -r '.error // empty' <<<"${body}")
+            case "${err}" in
+              authorization_pending) say "waiting: authorization_pending"; continue ;;
+              slow_down) interval=$(( interval + 5 )); say "waiting: slow_down"; continue ;;
+              "") ;;
+              *) say "call: POST /login/oauth/access_token -> ${status}"; say "stop: ${err}"; exit 1 ;;
+            esac
+            USER_TOKEN=$(jq -r '.access_token // empty' <<<"${body}")
+            echo "::add-mask::${USER_TOKEN}"
+            say "call: POST /login/oauth/access_token -> ${status}"
+            break
+          done
+          if [ -z "${USER_TOKEN}" ]; then say "stop: no token was received before the code expired"; exit 1; fi
+
+          # 3. List the artifacts of the target with the user token.
+          list=$(mktemp)
+          status=$(curl -sS -o "${list}" -w '%{http_code}' -H "Authorization: Bearer ${USER_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${TARGET}/actions/artifacts?per_page=30")
+          say "call: GET /repos/${TARGET}/actions/artifacts -> ${status}"
+          case "${status}" in 401|403|404) say "stop: access was refused (${status}); no workaround, no secret"; exit 1 ;; esac
+          id=$(jq -r '[.artifacts[]? | select(.expired == false)][0].id // empty' "${list}")
+          name=$(jq -r '[.artifacts[]? | select(.expired == false)][0].name // empty' "${list}")
+          if [ -z "${id}" ]; then say "stop: the target has no unexpired artifact"; exit 1; fi
+
+          # 4. Download the first one. The redirect is not followed with the token; only its host is printed.
+          hdr=$(mktemp)
+          status=$(curl -sS -o /dev/null -D "${hdr}" -w '%{http_code}' -H "Authorization: Bearer ${USER_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${TARGET}/actions/artifacts/${id}/zip")
+          say "call: GET /repos/${TARGET}/actions/artifacts/{id}/zip -> ${status}"
+          case "${status}" in 401|403|404) say "stop: access was refused (${status}); no workaround, no secret"; exit 1 ;; esac
+          SIGNED_URL=$(grep -i '^location:' "${hdr}" | tr -d '\r' | cut -d' ' -f2- || true)
+          echo "::add-mask::${SIGNED_URL}"
+          if [ -z "${SIGNED_URL}" ]; then say "stop: the download answered ${status} with no redirect"; exit 1; fi
+          host=${SIGNED_URL#*://}; host=${host%%/*}
+          say "redirect host: ${host}"
+          zip=$(mktemp)
+          status=$(curl -sS -o "${zip}" -w '%{http_code}' "${SIGNED_URL}")
+          say "call: GET (redirect host ${host}) -> ${status}"
+          size=$(wc -c < "${zip}" | tr -d ' ')
+          say "file: ${name} (${size} bytes)"
+
+          # 5. Control: the same list call without a token.
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${TARGET}/actions/artifacts?per_page=1")
+          say "control: GET /repos/${TARGET}/actions/artifacts without a token -> ${status}"
+          rm -f "${list}" "${hdr}" "${zip}"

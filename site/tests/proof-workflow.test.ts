@@ -73,9 +73,13 @@ test("REQ-101 AC8: the download does not follow the redirect and the redirect ta
 test("REQ-101 AC7: nothing verbose, no trace, no echo of a credential", () => {
   assert.ok(!/curl[^\n]*(\s-v\b|--verbose|--trace)/.test(code), "no verbose curl");
   assert.ok(!/set\s+-[a-z]*x|xtrace/.test(code), "no shell trace");
-  for (const l of logical.filter((x) => /\b(echo|printf|say)\b/.test(x))) {
-    if (SECRETS.some((v) => new RegExp(`\\$\\{?${v}\\}?`).test(l))) {
-      assert.ok(l.includes("::add-mask::"), `a credential is only echoed to be masked: ${l.trim()}`);
+  const holdsSecret = (s: string): boolean => SECRETS.some((v) => new RegExp(`\\$\\{?${v}\\}?`).test(s));
+  for (const l of logical.filter((x) => /\b(echo|printf)\b/.test(x) && !/^\s*say\(\)/.test(x))) {
+    if (holdsSecret(l)) assert.ok(l.includes("::add-mask::"), `a credential is only echoed to be masked: ${l.trim()}`);
+  }
+  for (const l of logical) {
+    for (const m of l.matchAll(/\bsay\s+"([^"]*)"/g)) {
+      assert.ok(!holdsSecret(m[1] ?? ""), `a printed line holds a credential: ${l.trim()}`);
     }
   }
 });
