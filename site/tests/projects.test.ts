@@ -6,8 +6,8 @@ import { resolve } from "node:path";
 import { test } from "node:test";
 import {
   EMPTY_LIST_PHRASE,
-  PERMISSIONS_REFUSED_PHRASE,
   PROJECTS_UNREADABLE_PHRASE,
+  permissionsRefusedLine,
   SESSION_COOKIE,
   createApp,
   createCore,
@@ -70,7 +70,7 @@ test("REQ-101 AC6: the page lists exactly the repositories GitHub returns for th
   assert.deepEqual(names, ["acme/api", "acme/web", "beta-co/app"], "deduplicated across installations and sorted");
   assert.ok(!html.includes("acme/secret"), "a repository the person cannot read is never named");
   assert.ok(!/\b\d+ (repositories|projects|installations)\b/i.test(html) && !html.includes("total_count"), "nothing is counted");
-  assert.ok(!html.includes(EMPTY_LIST_PHRASE) && !html.includes(PROJECTS_UNREADABLE_PHRASE) && !html.includes(PERMISSIONS_REFUSED_PHRASE));
+  assert.ok(!html.includes(EMPTY_LIST_PHRASE) && !html.includes(PROJECTS_UNREADABLE_PHRASE) && !html.includes("has more access than this portal allows"));
   assert.deepEqual(
     calls.map((c) => c.url),
     [
@@ -109,10 +109,13 @@ test("REQ-101 AC6: a list that cannot be read is said, with no partial list", as
   }
 });
 
-test("REQ-104 AC7: an installation that grants more than Actions read and Metadata read refuses the person, shows no project and adds no call", async () => {
-  const lateKey = fixture("installations-ok").replace('"metadata":"read"}', '"metadata":"read","pull_requests":"read"}');
+test("REQ-104 AC7: an installation that grants more than Actions read and Metadata read is refused by itself, with one fixed line, and its repositories are not fetched", async () => {
+  assert.equal(
+    permissionsRefusedLine("acme"),
+    "The GitHub App installed on acme has more access than this portal allows. Ask its administrator to review it.",
+  );
+  const lateKey = fixture("installations-write-permission").replace('"actions":"write","metadata":"read"}', '"actions":"read","metadata":"read","pull_requests":"read"}');
   const variants: [string, string][] = [
-    ["extra permission (contents)", fixture("installations-extra-permission")],
     ["extra permission sorting after metadata", lateKey],
     ["write permission", fixture("installations-write-permission")],
     ["missing permission", fixture("installations-missing-permission")],
@@ -121,15 +124,53 @@ test("REQ-104 AC7: an installation that grants more than Actions read and Metada
     const { app, calls } = harness({
       "/user/installations?per_page=100&page=1": { body },
       "/user/installations/1001/repositories?per_page=100&page=1": { body: fixture("repositories-1001-page1") },
-      "/user/installations/1002/repositories?per_page=100&page=1": { body: fixture("repositories-1002-page1") },
     });
     const html = await home(app);
-    assert.ok(html.includes(PERMISSIONS_REFUSED_PHRASE), name);
-    assert.equal(PERMISSIONS_REFUSED_PHRASE, "This GitHub App has more access than this portal allows. Ask your administrator to review it.");
-    assert.ok(!/acme\/|beta-co\//.test(html), `${name}: no project`);
+    assert.ok(html.includes(permissionsRefusedLine("acme")), name);
+    assert.ok(!/acme\/(web|api)/.test(html), `${name}: no repository of the refused installation`);
+    assert.ok(!html.includes(EMPTY_LIST_PHRASE), `${name}: the refusal is not an empty list`);
     assert.ok(html.includes('<form method="post" action="/signout">'), "the person can still sign out");
-    assert.equal(calls.length, 1, `${name}: no call beyond the installation listing the page already makes`);
+    assert.equal(calls.length, 1, `${name}: its repositories are not fetched`);
   }
+});
+
+test("REQ-104 AC7: one over-granted installation does not hide the others", async () => {
+  const { app, calls } = harness({
+    "/user/installations?per_page=100&page=1": { body: fixture("installations-extra-permission") },
+    "/user/installations/1001/repositories?per_page=100&page=1": { body: fixture("repositories-1001-page1") },
+    "/user/installations/1001/repositories?per_page=100&page=2": { body: fixture("repositories-1001-page2") },
+    "/user/installations/1002/repositories?per_page=100&page=1": { body: fixture("repositories-1002-page1") },
+  });
+  const html = await home(app);
+  const names = [...html.matchAll(/<h2><a href="https:\/\/github\.com\/([^"]+)">\1<\/a><\/h2>/g)].map((m) => m[1]);
+  assert.deepEqual(names, ["acme/api", "acme/web"], "the well-granted installation is listed as usual");
+  assert.ok(html.includes(permissionsRefusedLine("beta-co")), "one fixed line for the over-granted one");
+  assert.ok(!html.includes("beta-co/app"), "none of its repositories");
+  assert.ok(!calls.some((c) => c.url.includes("/installations/1002/")), "its repositories are not fetched");
+  assert.equal((html.match(/has more access than this portal allows/g) ?? []).length, 1, "exactly one line");
+});
+
+test("REQ-104 AC7: an over-granted installation whose account cannot be named reads as not known, never as a guess", async () => {
+  for (const login of ['"><script>x()</script>', "a b", ""]) {
+    const body = fixture("installations-extra-permission").replace('"login":"beta-co"', `"login":${JSON.stringify(login)}`);
+    const { app } = harness({ "/user/installations?per_page=100&page=1": { body } });
+    const html = await home(app);
+    assert.ok(html.includes(PROJECTS_UNREADABLE_PHRASE), JSON.stringify(login));
+    assert.ok(!html.includes("<script>x()"));
+  }
+});
+
+test("REQ-101 AC6: a listing ended by the page cap before the stated count is not known, never partial; the cap itself is enough when the count is reached", async () => {
+  const page = (n: number): string => JSON.stringify({ total_count: 25, repositories: [{ full_name: `acme/r${n}` }] });
+  const routes: Routes = { "/user/installations?per_page=100&page=1": { body: fixture("installations-write-permission").replace('"write"', '"read"') } };
+  for (let n = 1; n <= 12; n += 1) routes[`/user/installations/1001/repositories?per_page=100&page=${n}`] = { body: page(n) };
+  const capped = await home(harness(routes).app);
+  assert.ok(capped.includes(PROJECTS_UNREADABLE_PHRASE), "25 repositories in 1-per-page answers cannot be read within 10 pages");
+  assert.ok(!capped.includes("acme/r1"), "no partial list");
+  const exact: Routes = { "/user/installations?per_page=100&page=1": routes["/user/installations?per_page=100&page=1"]! };
+  for (let n = 1; n <= 10; n += 1) exact[`/user/installations/1001/repositories?per_page=100&page=${n}`] = { body: JSON.stringify({ total_count: 10, repositories: [{ full_name: `acme/r${n}` }] }) };
+  const complete = await home(harness(exact).app);
+  assert.ok(!complete.includes(PROJECTS_UNREADABLE_PHRASE) && complete.includes("acme/r10"), "ten pages that reach the count are a complete list");
 });
 
 test("REQ-101 AC7: every request is a GET to the GitHub API with the person's own token, no write, no other credential, no model", async () => {
