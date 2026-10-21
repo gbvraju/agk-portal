@@ -28,13 +28,13 @@ Written by the intake of one sentence, as data: "The Requirements section lists 
    | Status | "Planned." / "In progress." / "Done." / "Status not known yet." |
    | Tests | "{k} of {n} acceptance criteria have a test." / "No acceptance criteria are listed." / "Its acceptance criteria are not known yet." / "Tests not known yet." |
    | Specification | "Specification approved." / "Specification waiting for approval." / "No specification yet." / "Specification not known yet." |
-   | Proven | the phrases of SPEC-0005 rule 10 for Proven, "{id} is proven (last change #{n}: {outcome})" and "{id} is not proven: {reasons}", with the identifier removed from the front because the line carries it as the reference; "Not counted yet: it is planned."; "Proof not known yet." |
+   | Proven | the phrases of SPEC-0005 rule 10 for Proven, without the title and the identifier that the line already carries: "Proven (last change #{n}: {outcome})." and "Not proven: {reasons}." with the same reasons; "Not counted yet: it is planned."; "Proof not known yet." |
    | Group | "In progress ({n})" / "Planned ({n})" / "Done ({n})" / "No requirements yet." |
    | Criteria | "Acceptance criteria" / "has a test" / "no test" |
    | Hidden | "{n} kit requirements are not shown." / "1 kit requirement is not shown." |
    | Unknown | "Requirements could not be read: not known yet." |
 
-   The phrases are proposed wording for the maintainers to review.
+   The phrases are held to the same plain-language standard as SPEC-0005 (the identifier after the plain sentence as a reference), and the product owner reviews this table in the approval pull request before the spec is approved.
 9. **The parity tests.** The tests render the section from each fixture facts document and week and run `python3 scripts/agk/product_report.py --facts FILE --week WEEK` on the same pair. They show that: the proven phrase of each `done` or `in-progress` requirement equals the report's Proven line for it; the set of `planned` requirements with no spec equals the report's group "Planned requirements with no specification" once the numbers below 100 are removed from both; the number of criteria and of criteria with a marker equals the report's reasons "{ACn} has no test"; and the section lists no requirement that the facts do not hold. A test changes one marker in a fixture and shows that only the coverage of that requirement changes.
 10. **Fixtures and tests.** The fixtures are facts documents under `site/tests/fixtures/` that carry no token and no signed address, covering each status, a requirement with every criterion tested, with some tested and with none, with no criteria and with unknown criteria, a requirement named by no spec, by a Draft spec, by an Approved spec and by two specs of different status, the kit's requirements, more than ten Done requirements, and unknown values in each source. The tests are TypeScript files named `*.test.ts` under `site/tests/`, run by the npm command in `agk.toml` `project_tests`, each carrying the marker `REQ-106 ACn` it proves.
 
@@ -55,12 +55,14 @@ REQ-106 AC1 to AC3: *each requirement stands as the report's own rules say.* Rul
 
 ## Residual
 
-- 2026-10-21: the rule that hides REQ-001 to REQ-099 is the one rule the report does not have; the This week group "Planned requirements with no specification" still lists them, as the report does (due 2026-12-31).
+- 2026-10-21: the rule that hides REQ-001 to REQ-099 is the one rule the report does not have; the This week group "Planned requirements with no specification" still lists them, as the report does, until the report's gap is fixed in agk and this project upgrades (due 2026-12-31).
 - 2026-10-21: the page is tied to the report as vendored at kit 0.32.0 and to the facts fields of agk SPEC-0009; a kit upgrade that changes either fails the parity tests, and the spec is then amended (due 2026-12-31).
-- 2026-10-21: the fixed phrases are proposed wording and are reviewed in the rulings pull request (due 2026-11-30).
+- 2026-10-21: the product owner reviews the phrase table of rule 8 in the approval pull request before this spec is approved (due 2026-11-30).
 - 2026-10-21: a long list of Done requirements is closed, not paged; a project with hundreds of requirements may need paging in a later slice (due 2026-12-31).
 
 ## Open questions
 
 - Q-S0006-1 The kit's requirements (REQ-001 to REQ-099) are hidden in this section, but SPEC-0005 follows the report exactly, so its Needs your decision group "Planned requirements with no specification" lists them. The criteria assume the two differ, as ruled. Confirm, or say that SPEC-0005 should hide them too (which would make that group differ from the report, and the parity test would remove the numbers below 100 from both sides).
+  Ruled 2026-10-21 by the product owner: SPEC-0005 keeps parity with the report and is not changed. The kit requirements in Needs your decision are a gap of the report itself, to be fixed in agk; after this project upgrades to the kit version that fixes it, parity removes them here too. There is no project-level rule.
 - Q-S0006-2 The report has no rule for a requirement named by two or more specs of different status. The criteria assume "approved" only when every naming spec is Approved, "waiting for approval" when any is Draft, and "not known yet" when any status is unknown; no other rule is invented. Confirm, or give the rule.
+  Ruled 2026-10-21 by the product owner: as read (approved only when every naming spec is Approved; waiting for approval when any is Draft; not known yet when any status is unknown).
