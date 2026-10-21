@@ -42,5 +42,8 @@ REQ-101 AC1 and AC2: *a project's facts reach the page as published.* Rules 2 an
 ## Open questions
 
 - Q-S0001-1 The schema file allows an optional `kit_version` key that the key list of agk SPEC-0009 rule 3 does not name. The criteria assume the build accepts schema 1 documents with or without it and ignores keys it does not use.
+  Ruled 2026-10-21 by the maintainers: as read. Schema 1 documents are accepted with or without `kit_version`; keys the build does not use are ignored.
 - Q-S0001-2 "The latest" artifact is not defined for the site. The criteria assume the highest `<week>` label among unexpired `agk-facts-<week>` artifacts (an ISO week such as 2026-W42), and, among artifacts of the same name, the newest by creation time (agk SPEC-0019 rule 5).
+  Ruled 2026-10-21 by the maintainers: as read. The latest artifact is the highest `<week>` label among unexpired `agk-facts-<week>` artifacts, then the newest by creation time among artifacts of the same name.
 - Q-S0001-3 The name and shape of the config file are not given. The criteria assume a JSON file `projects.json` at the repository root holding a list of `OWNER/REPO` strings, `gbvraju/agk` first and `gbvraju/cors` second.
+  Ruled 2026-10-21 by the maintainers: as read. The config file is `projects.json` at the repository root, a list of `OWNER/REPO` strings, `gbvraju/agk` first.
