@@ -1,6 +1,6 @@
 # ADR-0002: Project charter of the AGK portal
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: ADR-0001
