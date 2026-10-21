@@ -35,6 +35,7 @@ Operating rules that apply to every item (`constitution/principles.md` by number
 
 ### Item 2 — The throwaway access proof (SPEC-0001 rule 9)
 
+- Status: superseded by ADR-0006 (the access model moves to a GitHub App and a server; a new brief follows). Do not build this item.
 - Advances: REQ-101
 - Scope: `.github/workflows/artifact-access-proof.yml` (a new file), `site/tests/proof-workflow.test.ts`, `docs/runs/artifact-access-proof.md`, `docs/adr/0006-artifact-access-proof.md`. No other path.
 - Acceptance:

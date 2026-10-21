@@ -1,6 +1,6 @@
 # ADR-0001: agk-portal adopts agk
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: none
