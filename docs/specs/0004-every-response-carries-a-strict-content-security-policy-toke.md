@@ -1,6 +1,6 @@
 # SPEC-0004: Responses are secure by default and the server never writes to GitHub
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-104
 
@@ -45,3 +45,5 @@ REQ-104 AC1 to AC3: *every response is locked down, carries no script, and the c
 ## Open questions
 
 none
+
+Ruled 2026-10-21 by the maintainers: the fixed phrases of rules 4 and 7 are accepted as written.
