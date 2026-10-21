@@ -2,6 +2,17 @@ import { CONFIG_NAMES, requireSetting, type Clock, type Config } from "./config.
 
 export { CONFIG_NAMES, MissingSetting, requireSetting } from "./config.ts";
 export type { Clock, Config, ConfigName } from "./config.ts";
+export { API_HOST, TOKEN_ADDRESS, createGithubClient, guardedFetch } from "./github.ts";
+export type { CodeExchange } from "./github.ts";
+export {
+  CONTENT_SECURITY_POLICY,
+  FIXED_ERROR_PHRASE,
+  errorPage,
+  htmlPage,
+  redirectHome,
+  safely,
+  stylesheet,
+} from "./responses.ts";
 
 export interface Settings {
   clientId: string;

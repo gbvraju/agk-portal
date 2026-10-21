@@ -1,0 +1,10 @@
+{
+  "name": "AGK portal",
+  "description": "Reads the AGK facts that each project's weekly report publishes. Read-only.",
+  "permissions": {
+    "actions": "read",
+    "metadata": "read"
+  },
+  "expire_user_authorization_tokens": true,
+  "callback_path": "/callback"
+}
