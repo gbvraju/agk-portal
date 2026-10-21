@@ -1,6 +1,6 @@
 # ADR-0012: Add REQ-106: The Requirements section shows how each requirement stands
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: SPEC-0006

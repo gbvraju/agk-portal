@@ -1,6 +1,6 @@
 # ADR-0011: Add REQ-105: The This week section follows the weekly report's rules
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: SPEC-0005

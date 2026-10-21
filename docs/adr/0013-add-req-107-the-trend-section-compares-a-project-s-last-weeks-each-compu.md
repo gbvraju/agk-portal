@@ -1,6 +1,6 @@
 # ADR-0013: Add REQ-107: The Trend section shows how each measure moves week by week
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-21
 - Deciders: maintainers
 - Related: SPEC-0007
