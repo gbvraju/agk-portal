@@ -40,7 +40,7 @@ test("REQ-103 AC5: the runbook lists each of the four settings by name, the two 
   const row = (name: string): string => runbook.split("\n").find((line) => line.startsWith("|") && line.includes(name)) ?? "";
   for (const name of ["GITHUB_APP_CLIENT_SECRET", "SESSION_KEY"]) assert.match(row(name), /\bsecret\b/i, `${name} is a secret`);
   for (const name of ["GITHUB_APP_CLIENT_ID", "CALLBACK_URL"]) assert.match(row(name), /\bvariable\b/i, `${name} is a variable`);
-  assert.ok(!/\bgh[pousr]_[A-Za-z0-9]{10,}|github_pat_|-----BEGIN|[A-Fa-f0-9]{32,}|[A-Za-z0-9+/=_-]{40,}/.test(runbook.replace(/https?:\/\/\S+/g, "").replace(/`[^`]*`/g, (m) => (m.length > 60 ? "" : m))), "no token, key or long random value");
+  assert.ok(!/\bgh[pousr]_[A-Za-z0-9]{10,}|github_pat_|-----BEGIN|[A-Fa-f0-9]{32,}|[A-Za-z0-9+/=_-]{40,}/.test(runbook.replace(/https?:\/\/\S+/g, " ").replace(/`[^`]*`/g, (m) => (m.length > 60 ? " " : ` ${m} `))), "no token, key or long random value");
   assert.ok(!/(secret|key|token)\s*[:=]\s*["']?[A-Za-z0-9+/_-]{12,}/i.test(runbook), "no assignment of a value to a secret");
 });
 

@@ -1,0 +1,11 @@
+# The staging Worker of the AGK portal (ADR-0016). It is published by Cloudflare's own Git integration (Workers Builds) from
+# the main branch, with the root directory `site`; no workflow of this repository deploys it and no Cloudflare token is
+# held in GitHub. Its settings (two secrets and two variables) are set by the maintainers in Cloudflare and are listed by
+# name in docs/runs/deploy-cloudflare.md, never here. No binding, no route and no account is named here.
+name = "agk-portal-staging"
+main = "src/adapters/cloudflare/index.ts"
+# (verify) the date is accepted by the runtime Cloudflare builds with; the first build settles it.
+compatibility_date = "2026-10-01"
+workers_dev = true
+# (verify) keep the variables and secrets set in the dashboard when this file is deployed.
+keep_vars = true
