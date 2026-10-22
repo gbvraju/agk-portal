@@ -1,6 +1,6 @@
 # ADR-0019: The This week section renders the report's data instead of reproducing its rules
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-22
 - Deciders: maintainers
 - Related: ADR-0006, ADR-0011, ADR-0017
