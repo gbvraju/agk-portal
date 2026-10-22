@@ -23,6 +23,8 @@ export type Stage =
   | { kind: "state" }
   | { kind: "code" }
   | { kind: "exchange"; status: number }
+  | { kind: "request" }
+  | { kind: "unreadable" }
   | { kind: "token"; error: string };
 
 export function tokenError(answer: unknown): string {
@@ -38,6 +40,10 @@ function noticeValue(stage: Stage): string {
       return "failed-code";
     case "exchange":
       return `failed-http-${stage.status}`;
+    case "request":
+      return "failed-request";
+    case "unreadable":
+      return "failed-unreadable";
     case "token":
       return `failed-token-${(TOKEN_ERRORS as readonly string[]).includes(stage.error) ? stage.error : "unknown"}`;
   }
@@ -47,6 +53,8 @@ function noticeValue(stage: Stage): string {
 function stagePhrase(value: string): string | undefined {
   if (value === "failed-state") return "The sign-in state did not match.";
   if (value === "failed-code") return "GitHub returned no code.";
+  if (value === "failed-request") return "The request to GitHub failed.";
+  if (value === "failed-unreadable") return "GitHub's answer could not be read.";
   const status = /^failed-http-([1-5]\d\d)$/.exec(value)?.[1];
   if (status !== undefined) return `GitHub refused the code exchange (HTTP ${status}).`;
   const error = /^failed-token-([a-z_]+)$/.exec(value)?.[1];
