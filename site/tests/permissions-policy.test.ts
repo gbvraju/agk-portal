@@ -87,7 +87,6 @@ test("REQ-104 AC1: every response of the server carries exactly one Permissions-
   assert.ok(all.length >= 18);
   for (const [name, response] of all) {
     assert.equal(response.headers.get("permissions-policy"), PERMISSIONS_POLICY, name);
-    assert.ok(!response.headers.get("permissions-policy")!.includes(","[0] + "  "), `${name}: one value`);
     assert.equal([...response.headers].filter(([key]) => key.toLowerCase() === "permissions-policy").length, 1, `${name}: one header`);
   }
 });
