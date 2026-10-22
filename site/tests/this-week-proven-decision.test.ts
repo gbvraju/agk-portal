@@ -57,12 +57,12 @@ const proven = (page: string): string[] => lis(body(page, "Proven") ?? "");
 const FIXTURES = ["kinds", "busy", "quiet", "dirty-unknown", "empty"];
 const FILE = (n: number, commit = "c0ffee0000000000000000000000000000000000"): string => `https://github.com/demo-org/demo-repo/blob/${commit}/docs/requirements.md#L${n}`;
 
-test("REQ-105 AC1: the parts stand in the order of the spec: Delivered, Proven, Needs your decision, Time and review; At risk is not built yet", async () => {
+test("REQ-105 AC1: the parts stand in the order of the spec: Delivered, Proven, Needs your decision, Time and review; At risk stands between them", async () => {
   const { html: page } = await html("kinds");
   const at = (s: string): number => page.indexOf(s);
   assert.ok(at("<h4>Delivered</h4>") < at("<h4>Proven</h4>") && at("<h4>Proven</h4>") < at("<h4>Needs your decision</h4>") && at("<h4>Needs your decision</h4>") < at("<h4>Time and review</h4>"));
-  assert.ok(!page.includes("<h4>At risk</h4>"));
-  assert.equal((page.match(/<h4>/g) ?? []).length, 4);
+  assert.ok(at("<h4>Needs your decision</h4>") < at("<h4>At risk</h4>") && at("<h4>At risk</h4>") < at("<h4>Time and review</h4>"));
+  assert.equal((page.match(/<h4>/g) ?? []).length, 5);
 });
 
 test("REQ-105 AC2: every item of Proven and of Needs your decision appears once, in the data's order, with its identifier, number, date and links, for each fixture", async () => {
