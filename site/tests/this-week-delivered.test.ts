@@ -255,3 +255,11 @@ test("REQ-105 AC6: the dirty notice and the two parts live together", async () =
   const { html: page } = await html("dirty-unknown");
   assert.ok(page.includes("unsaved changes") && page.includes("<h4>Delivered</h4>") && page.includes("<h4>Time and review</h4>"));
 });
+
+test("REQ-105 AC2: an item with two addresses on GitHub links the reference to the first and the second follows as its own link", async () => {
+  const { html: page } = await html("kinds", (r) => {
+    r.sections.delivered[5].links = [{ to: "pull-request", url: "https://github.com/demo-org/demo-repo/pull/5" }, { to: "issue", url: "https://github.com/demo-org/demo-repo/issues/9" }, { to: "issue", url: "https://github.com/demo-org/demo-repo/issues/10" }];
+  });
+  const line = (part(page, "Delivered")?.items ?? [])[5] as string;
+  assert.deepEqual(hrefs(line), ["https://github.com/demo-org/demo-repo/pull/5", "https://github.com/demo-org/demo-repo/issues/9", "https://github.com/demo-org/demo-repo/issues/10"]);
+});
