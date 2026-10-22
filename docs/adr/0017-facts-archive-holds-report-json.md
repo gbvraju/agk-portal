@@ -1,6 +1,6 @@
 # ADR-0017: The facts archive may hold report.json beside facts.json
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-22
 - Deciders: maintainers
 - Related: ADR-0006, ADR-0016
