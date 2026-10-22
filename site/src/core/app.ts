@@ -44,6 +44,14 @@ function ownOrigin(callbackUrl: string): string | undefined {
   }
 }
 
+function fromThisSite(request: Request, callbackUrl: string): boolean {
+  const own = ownOrigin(callbackUrl);
+  if (own === undefined) return false;
+  const origin = request.headers.get("origin");
+  if (origin === own) return true;
+  return (origin === null || origin === "null") && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
 export function createApp(core: Core, options: AppOptions = {}): (request: Request) => Promise<Response> {
   const github = options.github;
   const complete = options.complete ?? (github ? (code: string) => completeSignIn(core, github, code) : async () => refusal({ kind: "token", error: "unknown" }));
@@ -51,9 +59,10 @@ export function createApp(core: Core, options: AppOptions = {}): (request: Reque
   return safely(async (request) => {
     const path = new URL(request.url).pathname;
     if (request.method === "POST" && path === "/signout") {
-      // Another site must not be able to sign a visitor out: only a request that names this site's origin is answered.
-      const origin = request.headers.get("origin");
-      if (origin === null || origin !== ownOrigin(core.settings.callbackUrl)) return notFoundPage();
+      // Another site must not be able to sign a visitor out. A request is from this site when its Origin is this site's
+      // origin; or, because a page with Referrer-Policy: no-referrer makes the browser send the Origin of a form POST as
+      // "null" (or none), when the browser's own Sec-Fetch-Site, which a page cannot set, says same-origin.
+      if (!fromThisSite(request, core.settings.callbackUrl)) return notFoundPage();
       return htmlPage("Sign in", OFFER_HTML, 200, [clearCookie(SESSION_COOKIE)]);
     }
     if (request.method !== "GET") return notFoundPage();
