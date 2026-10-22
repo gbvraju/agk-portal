@@ -367,6 +367,21 @@ test("REQ-101 AC3: an archive with report.json but no facts.json, a duplicate, a
   }
 });
 
+test("REQ-101 AC3: bytes between the central directory and the end record, or an end record that counts fewer entries than the directory holds, refuse the archive", async () => {
+  const good = zip([factsEntry, reportEntry]);
+  const endAt = good.length - 22;
+  const padded = new Uint8Array(good.length + 8);
+  padded.set(good.subarray(0, endAt), 0);
+  padded.set(good.subarray(endAt), endAt + 8);
+  assert.deepEqual(await factsOf(readable(505, padded)), { kind: "unknown", reason: ARCHIVE_REASON }, "junk before the end record");
+  const fewer = good.slice();
+  new DataView(fewer.buffer).setUint16(endAt + 10, 1, true);
+  assert.deepEqual(await factsOf(readable(505, fewer)), { kind: "unknown", reason: ARCHIVE_REASON }, "the end record counts one entry, the directory holds two");
+  const more = good.slice();
+  new DataView(more.buffer).setUint16(endAt + 10, 3, true);
+  assert.deepEqual(await factsOf(readable(505, more)), { kind: "unknown", reason: ARCHIVE_REASON }, "the end record counts three entries");
+});
+
 test("REQ-101 AC3: each entry keeps its own checks: a report.json that is damaged, encrypted, too large or lies about its size refuses the archive, and so does a damaged facts.json beside a good report.json", async () => {
   const big = new Uint8Array(2 * 1024 * 1024);
   const cases: [string, Uint8Array][] = [
