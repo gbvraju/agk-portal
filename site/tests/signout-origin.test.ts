@@ -1,5 +1,5 @@
-// POST /signout answers only a request whose Origin is this site's own origin, the origin of CALLBACK_URL (the register's
-// residual on app.ts, closed by this change). Marker REQ-102 AC7: signing out clears the cookie and calls nothing at GitHub;
+// POST /signout answers only a request from this site: its Origin is this site's own origin, the origin of CALLBACK_URL, or
+// (a page with Referrer-Policy: no-referrer makes the browser send "null" or no Origin) its Sec-Fetch-Site is same-origin. Marker REQ-102 AC7: signing out clears the cookie and calls nothing at GitHub;
 // a request from another origin does neither. Recorded settings, a fixed clock and no network.
 import assert from "node:assert/strict";
 import { test } from "node:test";
