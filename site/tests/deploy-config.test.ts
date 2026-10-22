@@ -49,7 +49,35 @@ test("REQ-104 AC1: the runbook tells the maintainers to check the response heade
   for (const header of ["X-Content-Type-Options: nosniff", "Referrer-Policy: no-referrer", "Strict-Transport-Security:", "Cache-Control: no-store"]) {
     assert.ok(runbook.includes(header), header);
   }
-  assert.match(runbook, /curl -sI https:\/\/agk-portal-staging\./);
+  assert.match(runbook, /securityheaders\.com/, "a public scanning page for a phone");
+  assert.match(runbook, /curl -sI https:\/\/agk-portal-staging\./, "curl as the option for a computer");
+});
+
+test("the runbook can be followed from a phone: the session key comes from a password manager's generator and openssl is only an option", () => {
+  const key = runbook.split("\n").filter((line) => /password manager/i.test(line)).join("\n");
+  assert.match(key, /48 characters/, "the generator is set to at least 48 characters");
+  assert.match(key, /only into Cloudflare/i, "and pasted only into Cloudflare");
+  assert.match(runbook, /openssl rand -base64 48/, "openssl stays for those with a computer");
+  assert.ok(runbook.indexOf("password manager") < runbook.indexOf("openssl rand"), "the phone way comes first");
+});
+
+test("the test repositories are gbvraju/agk (public, has an artifact) and gbvraju/agk-proof-private (none), and a repository the tester cannot read is recorded as not testable with one account", () => {
+  assert.match(runbook, /`gbvraju\/agk`[^\n]*agk-facts-2026-W42/);
+  assert.match(runbook, /`gbvraju\/agk-proof-private`[^\n]*no `agk-facts/i);
+  assert.ok(!/one that the test person cannot read/i.test(runbook), "no longer asked of the tester");
+  assert.match(runbook, /cannot read[^\n]*not testable with one account/i);
+  const adr = readFileSync(resolve(repoRoot, "docs", "adr", "0016-deploy-cloudflare-workers-staging.md"), "utf8");
+  assert.match(adr, /cannot read[^\n]*not testable with one account/i, "a residual of the ADR");
+  assert.match(readFileSync(resolve(repoRoot, "docs", "runs", "residuals.md"), "utf8"), /deploy-cloudflare[^\n]*not testable with one account/i, "and of the register");
+});
+
+test("anyone with a GitHub account may sign in to staging and sees only the repositories where the App is installed and they have access (Q-B5-1)", () => {
+  assert.match(runbook, /Any account/);
+  assert.ok(!/only on this account/i.test(runbook), "the App is not limited to the maintainers' account");
+  assert.match(runbook, /only the repositories where the App is installed and that they can read/i);
+  const adr = readFileSync(resolve(repoRoot, "docs", "adr", "0016-deploy-cloudflare-workers-staging.md"), "utf8");
+  assert.match(adr, /anyone with a GitHub account may sign in/i);
+  assert.ok(!/maintainers decide who may sign in/i.test(adr), "the open question is closed");
 });
 
 test("the runbook says what the maintainers do in Cloudflare and in GitHub, and that nothing is deployed from GitHub", () => {
