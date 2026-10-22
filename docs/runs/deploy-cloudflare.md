@@ -13,13 +13,13 @@ The Worker is `agk-portal-staging`. Its address is `https://agk-portal-staging.<
 | `GITHUB_APP_CLIENT_SECRET` | secret | Cloudflare, Worker settings, Variables and Secrets (type: Secret) | a client secret generated on the App's settings page |
 | `SESSION_KEY` | secret | Cloudflare, Worker settings, Variables and Secrets (type: Secret) | a random text of at least 32 characters that you generate yourselves |
 
-Generate the session key on your own computer, for example with `openssl rand -base64 48`, and paste it only into Cloudflare. If the key is lost or changed, everyone is signed out; that is all.
+Generate the session key with your phone's password manager (its password generator, set to 48 characters or more, letters and digits), copy it, and paste it only into Cloudflare; do not save it anywhere else, send it or type it into a chat. If you have a computer, `openssl rand -base64 48` does the same. If the key is lost or changed, everyone is signed out; that is all.
 
 ## In GitHub
 
-1. Create the GitHub App from `github-app-manifest.json` (Settings, Developer settings, GitHub Apps, New GitHub App): name for example "AGK portal (staging)"; permissions: Repository permissions, Actions: Read-only, Metadata: Read-only, and nothing else; Optional: leave "Expire user authorization tokens" ON; Callback URL: the `CALLBACK_URL` value above; Webhook: inactive; Device Flow: off; "Request user authorization (OAuth) during installation": off; Where can this App be installed: only on this account. (verify: the labels of these settings.)
+1. Create the GitHub App from `github-app-manifest.json` (Settings, Developer settings, GitHub Apps, New GitHub App): name for example "AGK portal (staging)"; permissions: Repository permissions, Actions: Read-only, Metadata: Read-only, and nothing else; Optional: leave "Expire user authorization tokens" ON; Callback URL: the `CALLBACK_URL` value above; Webhook: inactive; Device Flow: off; "Request user authorization (OAuth) during installation": off; Where can this App be installed: Any account, so that anyone with a GitHub account can sign in (Q-B5-1 ruled); they see only the repositories where the App is installed and that they can read. (verify: the labels of these settings, and that a person who is not the App's owner can sign in.)
 2. On the App's page, copy the Client ID into the Cloudflare variable `GITHUB_APP_CLIENT_ID`, then Generate a new client secret and paste it straight into the Cloudflare secret `GITHUB_APP_CLIENT_SECRET`. The secret is shown once.
-3. Install the App on the repositories to test, choosing Only select repositories: one private repository that has an `agk-facts-<week>` artifact (for example `gbvraju/agk-proof-private`), one that has none, and one that the test person cannot read.
+3. Install the App on the repositories to test, choosing Only select repositories: `gbvraju/agk` (public; it has the artifact `agk-facts-2026-W42`) as the one with an artifact, and `gbvraju/agk-proof-private` (private; it has no `agk-facts-<week>` artifact) as the one without. A repository the tester cannot read is not testable with one account (see the residual in ADR-0016); it is not asked of you.
 4. In this repository's settings, Secrets and variables, Actions, Variables: the variable `APP_CLIENT_ID` is no longer used and may be deleted (ADR-0015).
 
 ## In Cloudflare
@@ -32,18 +32,18 @@ Generate the session key on your own computer, for example with `openssl rand -b
 
 ## Checks after the first deployment
 
-Run these from your own computer. Each must show what is written.
+Each must show what is written. They can be done from a phone.
 
-1. Signed out: `curl -sI https://agk-portal-staging.<your-subdomain>.workers.dev/` shows status 200 and these headers, exactly:
+1. Signed out: open https://securityheaders.com in your phone's browser, type the Worker's address and scan it (tick "Follow redirects" off if offered). On the result page read the "Raw Headers" table: the status is 200 and these headers are there, exactly as written. (With a computer, `curl -sI https://agk-portal-staging.<your-subdomain>.workers.dev/` shows the same.) The grade does not matter; the headers do:
    - `Content-Security-Policy: default-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`
    - `X-Content-Type-Options: nosniff`
    - `Referrer-Policy: no-referrer`
    - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
    - `Cache-Control: no-store`
-   (The curl output for `/style.css` has the same four first headers and no `Cache-Control`.)
+   (The same scan of the address followed by `/style.css` has the same four first headers and no `Cache-Control`.)
 2. In a browser: the page offers sign-in and shows no project name.
 3. Sign in with GitHub. Read the address bar on the GitHub page (only the host and path, never the code or state) and note that you returned to the portal address with nothing after it.
-4. Signed in: the page lists the repositories of the installation you can read, each with a card: "Facts read for {week}." for the repository with an artifact, "Not known yet: no facts artifact exists for its latest week." for the one with none, and nothing at all for the one you cannot read. If a card says "Not known yet: GitHub answered {status}." or "the request to GitHub failed.", note which.
+4. Signed in: the page lists the repositories where the App is installed and that you can read, each with a card: "Facts read for {week}." for the repository with an artifact, "Not known yet: no facts artifact exists for its latest week." for the one with none, and the page names nothing else. If a card says "Not known yet: GitHub answered {status}." or "the request to GitHub failed.", note which.
 5. Sign out (the button). The page offers sign-in again.
 6. Wait until 8 hours after a sign-in, or compare with the App's token expiry shown by the page's sign-out time, and note whether the session ended (the "Your session has ended" line).
 
@@ -63,7 +63,7 @@ Each is marked `(verify)` in the repository. For each, the check that settles it
 
 ## What to send back
 
-Send in the pull request thread or to the builder, in words (never a value): the output of the `curl -sI` command; what each card says; the text of any error page; which check failed and what you saw. Do not send a cookie, a token, a client secret, the session key, a signed address or a screenshot that shows one. The builder writes the record in `docs/runs/staging-record.md` by a docs-only pull request from your words, and opens a pull request with a test for each fact that turned out different.
+Send in the pull request thread or to the builder, in words (never a value): the Raw Headers table of the scan (or the output of the `curl -sI` command), in words; what each card says; the text of any error page; which check failed and what you saw. Do not send a cookie, a token, a client secret, the session key, a signed address or a screenshot that shows one. The builder writes the record in `docs/runs/staging-record.md` by a docs-only pull request from your words, and opens a pull request with a test for each fact that turned out different.
 
 ## Undo
 

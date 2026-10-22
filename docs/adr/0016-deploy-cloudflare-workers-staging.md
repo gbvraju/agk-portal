@@ -12,7 +12,7 @@ ADR-0006 chose Cloudflare Workers as the first host, with a portable core and on
 
 ## Decision
 
-1. The Worker is named `agk-portal-staging` and is published on its `workers.dev` address. It is a staging deployment: the page is behind sign-in, shows the cards as they are (a repository's name and "Facts read for {week}." or "Not known yet" with its reason), and has no section yet.
+1. The Worker is named `agk-portal-staging` and is published on its `workers.dev` address. It is a staging deployment: anyone with a GitHub account may sign in (ruling on Q-B5-1, 2026-10-22), and sees only the repositories where the App is installed and that they can read; the page is behind sign-in, shows the cards as they are (a repository's name and "Facts read for {week}." or "Not known yet" with its reason), and has no section yet.
 2. It is published by Cloudflare Workers Builds from the `main` branch only, root directory `site`, no build command, the default deploy command `npx wrangler deploy`, configured by the maintainers in the dashboard. Builds for other branches are off.
 3. `site/wrangler.toml` holds the name, the entry file (the Cloudflare adapter), a compatibility date, `workers_dev` and `keep_vars`, and nothing else: no secret, no setting name, no binding, no route, no account.
 4. The two secrets (`GITHUB_APP_CLIENT_SECRET`, `SESSION_KEY`) and the two variables (`GITHUB_APP_CLIENT_ID`, `CALLBACK_URL`) are set by the maintainers in Cloudflare. No agent reads or writes a value. No workflow of this repository deploys, and no Cloudflare token is stored in GitHub.
@@ -28,4 +28,5 @@ ADR-0006 chose Cloudflare Workers as the first host, with a portable core and on
 ## Residual
 
 - 2026-10-22: Workers Builds' settings, the `wrangler.toml` keys `workers_dev` and `keep_vars` and the compatibility date are from memory of Cloudflare's documentation (verify); the first build settles them (due 2026-12-31).
-- 2026-10-22: staging uses the real App and real customer data of whoever signs in; the maintainers decide who may sign in (the App is installed only where they choose) (due 2026-12-31).
+- 2026-10-22: anyone with a GitHub account may sign in to staging and sees only what GitHub lets them read in the repositories where the App is installed; the App is installed only where the maintainers choose (due 2026-12-31).
+- 2026-10-22: a repository that the tester cannot read, which must never be listed, named or counted (REQ-101 AC6), is not testable with one account on staging; the test of it stays the recorded-answer test in `site/tests/projects.test.ts` (due 2026-12-31).
