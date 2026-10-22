@@ -171,3 +171,10 @@ test("REQ-105 AC3: the text of a residual is never shown, and an address other t
   assert.deepEqual(hrefs(lines[2] as string), [PR(13)], "only the pull request that has a GitHub address is a link");
   assert.equal(lines[0], "An item was due on 2026-09-01 and is overdue. (the item)");
 });
+
+test("REQ-105 AC2: a grouped entry of one day reads 1 day", async () => {
+  const { html: page } = await html("kinds", (r) => {
+    r.sections.at_risk[2].entries = [{ number: 9, days: 1 }, { number: 13, days: 12 }];
+  });
+  assert.equal(textOf(risk(page)[2] as string), "Changes #9 (1 day) and #13 (12 days) have been open.");
+});
