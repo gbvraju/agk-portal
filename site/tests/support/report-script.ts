@@ -17,9 +17,10 @@ export interface Written {
 
 const cache = new Map<string, Written>();
 
-// `mutate` changes a copy of the fixture's facts before the script runs (a day, a repository, a flag).
-export function writeReport(fixture: string, mutate?: (facts: Record<string, unknown>) => void): Written {
-  const key = `${fixture}:${mutate ? mutate.toString() : ""}`;
+// `mutate` changes a copy of the fixture's facts before the script runs (a day, a repository, a flag); `tag` names that
+// change, because a result is kept per fixture and tag.
+export function writeReport(fixture: string, mutate?: (facts: Record<string, unknown>) => void, tag = ""): Written {
+  const key = `${fixture}:${tag}`;
   const cached = cache.get(key);
   if (cached) return cached;
   const dir = mkdtempSync(join(tmpdir(), "report-script-"));

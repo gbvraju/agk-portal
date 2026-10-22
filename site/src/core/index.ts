@@ -15,7 +15,10 @@ export {
   readFacts,
   statusReason,
 } from "./facts.ts";
-export type { FactsResult } from "./facts.ts";
+export type { FactsResult, ReportOutcome } from "./facts.ts";
+export { parseReport } from "./report.ts";
+export type { ReportDocument, ReportItem } from "./report.ts";
+export { DIRTY_NOTICE_PHRASE, NO_REPORT_REASON, REPORT_UNREADABLE_REASON, UNKNOWN_REPOSITORY_REASON, openingPhrase, thisWeekSection } from "./thisweek.ts";
 export { PROJECTS_UNREADABLE_PHRASE, factsCard, listProjectCards, listReadableRepositories, permissionsRefusedLine } from "./projects.ts";
 export type { Listing } from "./projects.ts";
 export { SESSION_COOKIE, SESSION_MAX_MS, completeSignIn, openSession, sealPlaintext, sealSession, sessionCookie } from "./session.ts";

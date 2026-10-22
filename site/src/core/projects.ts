@@ -2,6 +2,7 @@
 // the installations GitHub lists for the signed-in person with the person's own token. The list is never a file, and a
 // repository that GitHub does not return for this person is never listed, named or counted.
 import { readFacts, type FactsResult } from "./facts.ts";
+import { UNKNOWN_REPOSITORY_REASON, thisWeekSection } from "./thisweek.ts";
 import type { GithubClient } from "./github.ts";
 
 const ACCOUNT = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
@@ -81,12 +82,17 @@ export async function listReadableRepositories(github: GithubClient, token: stri
   return { kind: "ok", repositories: [...names].sort(), refused: [...new Set(refused)].sort() };
 }
 
-// The card of one project. Its sections arrive with their own requirements; until then a card says which week's facts were
-// read, or "Not known yet" with the reason, and nothing is shown as a number that is not known.
+// The card of one project. Its parts arrive with their own items; until then a card says which week's facts were read and,
+// from the report's data, opens the This week section; or says "Not known yet" with the reason, and nothing is shown as a
+// number that is not known.
 export function factsCard(name: string, result: FactsResult): string {
   const heading = `<h2><a href="https://github.com/${name}">${name}</a></h2>`;
-  const line = result.kind === "facts" ? `Facts read for ${result.week}.` : `Not known yet: ${result.reason}.`;
-  return `<section>${heading}<p>${line}</p></section>`;
+  if (result.kind === "unknown") return `<section>${heading}<p>Not known yet: ${result.reason}.</p></section>`;
+  let rest: string;
+  if (result.document["repo"] === "unknown") rest = `<p>Not known yet: ${UNKNOWN_REPOSITORY_REASON}.</p>`;
+  else if (result.report.kind === "report") rest = thisWeekSection(result.report.document);
+  else rest = `<p>Not known yet: ${result.report.reason}.</p>`;
+  return `<section>${heading}<p>Facts read for ${result.week}.</p>${rest}</section>`;
 }
 
 // The cards of the page: the facts of every repository the person can read, each read on its own so that one failure

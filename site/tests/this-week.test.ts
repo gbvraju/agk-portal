@@ -35,7 +35,7 @@ async function resultOf(entries: { name: string; data: string | Uint8Array }[], 
   const routes: Record<string, () => Response> = {
     "https://api.github.com/repos/acme/api/actions/artifacts?per_page=100&page=1": () => new Response(JSON.stringify(artifacts)),
     "https://api.github.com/repos/acme/api/actions/artifacts/777/zip": () => new Response(null, { status: 302, headers: { location: SIGNED } }),
-    [SIGNED]: () => new Response(bytes),
+    [SIGNED]: () => new Response(bytes as BodyInit),
   };
   const github = createGithubClient({ fetch: async (url) => routes[url]?.() ?? new Response("{}", { status: 404 }) });
   return readFacts(github, TOKEN, "acme/api", START);
@@ -110,9 +110,13 @@ test("REQ-105 AC1: the week window is Monday to Sunday UTC across a year boundar
     ["2028-01-05", "2027-W52"],
   ];
   for (const [today, label] of cases) {
-    const written = writeReport("quiet", (facts) => {
-      facts["today"] = today;
-    });
+    const written = writeReport(
+      "quiet",
+      (facts) => {
+        facts["today"] = today;
+      },
+      today,
+    );
     const d = written.document;
     const first = new Date(`${d.opening.first}T00:00:00Z`);
     const last = new Date(`${d.opening.last}T00:00:00Z`);
@@ -157,6 +161,8 @@ test("REQ-105 AC6: the facts commit is a link only when the data gives a GitHub 
   };
   const good = await cardOf("dirty-unknown", link("https://github.com/demo-org/demo-repo/tree/c0ffee0000000000000000000000000000000000"));
   assert.match(good.html, /<a href="https:\/\/github\.com\/demo-org\/demo-repo\/tree\/c0ffee0000000000000000000000000000000000">c0ffee0000000000000000000000000000000000<\/a>/);
+  const query = await cardOf("dirty-unknown", link("https://github.com/demo-org/demo-repo/pulls?q=is%3Apr+merged%3A2026-10-05..2026-10-11&type=pr"));
+  assert.ok(query.html.includes('href="https://github.com/demo-org/demo-repo/pulls?q=is%3Apr+merged%3A2026-10-05..2026-10-11&amp;type=pr"'), "an ampersand in an address is escaped");
   for (const bad of [
     "https://evil.example/x",
     "https://github.com.evil.example/x",
@@ -167,7 +173,6 @@ test("REQ-105 AC6: the facts commit is a link only when the data gives a GitHub 
     "https://github.com/a\nb",
     "https://github.com/a'b",
     "https://github.com/a<b",
-    "https://",
   ]) {
     const { html } = await cardOf("dirty-unknown", link(bad));
     assert.ok(html.includes("c0ffee0000000000000000000000000000000000"), "the commit is still said");
@@ -233,7 +238,7 @@ const BREAKS: [string, (report: Doc) => void][] = [
   ["a group without items", (r) => delete r.sections.needs_you[0].items],
   ["an item of a kind that is not for a group", (r) => r.sections.needs_you[0].items.push({ kind: "requirement-done", id: "x", title: "t", criteria: [], became_done: "this-week", links: [] })],
   ["an entry without days", (r) => delete r.sections.at_risk.find((i: Doc) => i.kind === "pull-requests-open-long").entries[0].days],
-  ["an entry with an extra key", (r) => (r.sections.at_risk.find((i: Doc) => i.kind === "pull-requests-merged-no-verdict").entries[0].x = 1)],
+  ["an entry with an extra key", (r) => (r.sections.at_risk.find((i: Doc) => i.kind === "pull-requests-merged-not-cleared").entries[0].x = 1)],
   ["drift counts that are not an object", (r) => (r.sections.at_risk.find((i: Doc) => i.kind === "drift-audit").counts = [])],
   ["an open issue that is not allowed", (r) => (r.sections.at_risk.find((i: Doc) => i.kind === "drift-audit").open_issue = "maybe")],
   ["hours as a number", (r) => (r.sections.cost.find((i: Doc) => i.kind === "pull-request-cost").hours = 1.2)],

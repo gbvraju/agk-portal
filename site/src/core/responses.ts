@@ -43,7 +43,7 @@ function respond(body: BodyInit | null, init: ResponseInit, noStore: boolean, co
   return new Response(body, { ...init, headers });
 }
 
-function escapeText(text: string): string {
+export function escapeText(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 

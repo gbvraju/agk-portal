@@ -2,7 +2,9 @@
 // keep the unexpired `agk-facts-<week>` ones, take the latest week and, within it, the newest, download it through the
 // redirect, read `facts.json` and accept schema 1 only. Every failure is local to the repository and says why.
 import type { GithubClient } from "./github.ts";
-import { MAX_FACTS_BYTES, readFactsFile } from "./zip.ts";
+import { parseReport, type ReportDocument } from "./report.ts";
+import { NO_REPORT_REASON, REPORT_UNREADABLE_REASON } from "./thisweek.ts";
+import { MAX_FACTS_BYTES, readArchive } from "./zip.ts";
 
 export const NO_ARTIFACT_REASON = "no facts artifact exists for its latest week";
 export const REQUEST_FAILED_REASON = "the request to GitHub failed";
@@ -11,8 +13,11 @@ export const MALFORMED_LIST_REASON = "the artifact list was not in the expected 
 export const ARCHIVE_REASON = "the archive could not be read";
 export const statusReason = (status: number): string => `GitHub answered ${status}`;
 
+// The report of the same artifact: its checked data, or the reason it is not used (the facts card still reads).
+export type ReportOutcome = { kind: "report"; document: ReportDocument } | { kind: "none"; reason: string };
+
 export type FactsResult =
-  | { kind: "facts"; week: string; document: Record<string, unknown> }
+  | { kind: "facts"; week: string; document: Record<string, unknown>; report: ReportOutcome }
   | { kind: "unknown"; reason: string };
 
 const unknown = (reason: string): FactsResult => ({ kind: "unknown", reason });
@@ -137,16 +142,31 @@ function parse(content: Uint8Array): { document: Record<string, unknown> } | { r
   return { document: document as Record<string, unknown> };
 }
 
+// The report of the artifact of `week`: absent in an artifact of an older kit, unreadable when it is not JSON, departs from the
+// closed list, or names another week than its artifact (a mislabelled artifact is not used).
+function reportOf(content: Uint8Array | undefined, week: string): ReportOutcome {
+  if (content === undefined) return { kind: "none", reason: NO_REPORT_REASON };
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(content);
+  } catch {
+    return { kind: "none", reason: REPORT_UNREADABLE_REASON };
+  }
+  const document = parseReport(text);
+  return document !== undefined && document.week === week ? { kind: "report", document } : { kind: "none", reason: REPORT_UNREADABLE_REASON };
+}
+
 // `repository` is an owner/name from the person's own listing; anything else is refused before any request.
 export async function readFacts(github: GithubClient, token: string, repository: string, now: number): Promise<FactsResult> {
   if (!REPOSITORY.test(repository)) throw new Error("the request is not allowed (address)");
   try {
     const chosen = latest(await candidates(github, token, repository, now));
     if (chosen === undefined) return unknown(NO_ARTIFACT_REASON);
-    const content = await readFactsFile(await download(github, token, repository, chosen.id));
-    if (content === undefined) return unknown(ARCHIVE_REASON);
-    const parsed = parse(content);
-    return "reason" in parsed ? unknown(parsed.reason) : { kind: "facts", week: chosen.week, document: parsed.document };
+    const archive = await readArchive(await download(github, token, repository, chosen.id));
+    if (archive === undefined) return unknown(ARCHIVE_REASON);
+    const parsed = parse(archive.facts);
+    if ("reason" in parsed) return unknown(parsed.reason);
+    return { kind: "facts", week: chosen.week, document: parsed.document, report: reportOf(archive.report, chosen.week) };
   } catch (error) {
     if (error instanceof Stop) return error.result;
     return unknown(REQUEST_FAILED_REASON);
