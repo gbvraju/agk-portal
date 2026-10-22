@@ -5,8 +5,15 @@ export const API_HOST = "api.github.com";
 export const TOKEN_ADDRESS = "https://github.com/login/oauth/access_token";
 // The GitHub App's web-flow authorization address (verify: from memory of GitHub's documentation).
 export const AUTHORIZE_ADDRESS = "https://github.com/login/oauth/authorize";
+// GitHub refuses a request with no User-Agent, and Cloudflare Workers' fetch adds none (Node's does). The guard puts this
+// fixed name on every request that goes to GitHub; it is a name, not a credential.
+export const USER_AGENT = "agk-portal";
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
+
+function isGithub(hostname: string): boolean {
+  return hostname === "github.com" || hostname.endsWith(".github.com") || hostname === "githubusercontent.com" || hostname.endsWith(".githubusercontent.com");
+}
 
 function refuse(reason: string): never {
   throw new Error(`the request is not allowed (${reason})`);
@@ -34,7 +41,10 @@ export function guardedFetch(send: FetchLike): FetchLike {
     } else {
       return refuse("method");
     }
-    return send(input, init);
+    if (!isGithub(url.hostname)) return send(input, init);
+    const headers = new Headers(init?.headers);
+    headers.set("User-Agent", USER_AGENT);
+    return send(input, { ...init, headers });
   };
 }
 

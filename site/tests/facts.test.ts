@@ -298,7 +298,7 @@ test("REQ-101 AC7: every request is a GET, the token is only in the Authorizatio
     if (url.startsWith("https://api.github.com/")) {
       assert.equal(headers.get("authorization"), `Bearer ${TOKEN}`);
       assert.equal(init?.redirect, "manual");
-      assert.deepEqual([...headers.keys()].sort(), ["accept", "authorization", "x-github-api-version"]);
+      assert.deepEqual([...headers.keys()].sort(), ["accept", "authorization", "user-agent", "x-github-api-version"]);
     } else {
       assert.equal(url, SIGNED);
       assert.deepEqual([...headers.keys()], [], "no credential and no header for the signed address");

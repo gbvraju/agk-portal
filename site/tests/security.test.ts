@@ -127,8 +127,7 @@ test("REQ-104 AC5: no token, code or cookie value is in any URL and GitHub calls
   await client.exchangeCode({ clientId: "id", clientSecret: SECRET, code: CODE, redirectUri: "https://portal.example/callback" });
   assert.equal(seen.length, 3);
   for (const { url } of seen) for (const secret of SECRETS) assert.ok(!url.includes(secret), `a URL holds a secret: ${url}`);
-  const authorized = seen[0]!.init?.headers as Record<string, string>;
-  assert.equal(authorized["Authorization"], `Bearer ${TOKEN}`);
+  assert.equal(new Headers(seen[0]!.init?.headers).get("authorization"), `Bearer ${TOKEN}`);
   assert.equal(new Headers(seen[1]!.init?.headers).get("authorization"), null, "the signed address gets no token");
   const exchange = seen[2]!;
   assert.equal(exchange.url, TOKEN_ADDRESS);
