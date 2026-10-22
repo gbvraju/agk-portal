@@ -40,6 +40,7 @@ export type { CodeExchange, GithubClient } from "./github.ts";
 export {
   CONTENT_SECURITY_POLICY,
   FIXED_ERROR_PHRASE,
+  PERMISSIONS_POLICY,
   errorPage,
   htmlPage,
   notFoundPage,

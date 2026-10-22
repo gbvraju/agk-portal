@@ -6,6 +6,27 @@ import { AUTHORIZE_ADDRESS } from "./github.ts";
 export const CONTENT_SECURITY_POLICY =
   "default-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
 
+// The page uses no browser feature, so every feature of the current list is denied with an empty allowlist (SPEC-0004 rule 1,
+// Amendment 5). The names are the W3C Permissions Policy features list (standardized, proposed and experimental) as read on
+// 2026-10-22, without the client-hint family ch-ua* and without interest-cohort, which is no longer on the list. A browser
+// ignores a name it does not know; the list is revisited when the specification changes.
+const DENIED_FEATURES = [
+  "accelerometer", "all-screens-capture", "ambient-light-sensor", "attribution-reporting", "autofill", "autoplay",
+  "battery", "bluetooth", "browsing-topics", "camera", "captured-surface-control", "clipboard-read",
+  "clipboard-write", "compute-pressure", "conversion-measurement", "cross-origin-isolated", "deferred-fetch",
+  "digital-credentials-create", "digital-credentials-get", "direct-sockets", "display-capture", "encrypted-media",
+  "execution-while-not-rendered", "execution-while-out-of-viewport", "focus-without-user-activation", "fullscreen",
+  "gamepad", "geolocation", "gyroscope", "hid", "identity-credentials-get", "idle-detection",
+  "join-ad-interest-group", "keyboard-map", "language-detector", "language-model", "local-fonts", "magnetometer",
+  "manual-text", "mediasession", "microphone", "midi", "monetization", "navigation-override", "otp-credentials",
+  "payment", "picture-in-picture", "publickey-credentials-get", "rewriter", "run-ad-auction", "screen-wake-lock",
+  "serial", "smart-card", "speaker-selection", "storage-access", "summarizer", "sync-script", "sync-xhr", "tools",
+  "translator", "trust-token-redemption", "unload", "usb", "vertical-scroll", "web-share", "window-management",
+  "writer", "xr-spatial-tracking"
+];
+
+export const PERMISSIONS_POLICY = DENIED_FEATURES.map((name) => `${name}=()`).join(", ");
+
 const HSTS = "max-age=31536000; includeSubDomains";
 
 export const FIXED_ERROR_PHRASE = "Something went wrong. Please try again.";
@@ -16,6 +37,7 @@ function respond(body: BodyInit | null, init: ResponseInit, noStore: boolean, co
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "no-referrer");
   headers.set("Strict-Transport-Security", HSTS);
+  headers.set("Permissions-Policy", PERMISSIONS_POLICY);
   if (noStore) headers.set("Cache-Control", "no-store");
   for (const cookie of cookies) headers.append("Set-Cookie", cookie);
   return new Response(body, { ...init, headers });

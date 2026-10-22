@@ -40,6 +40,7 @@ Each must show what is written. They can be done from a phone.
    - `Referrer-Policy: no-referrer`
    - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
    - `Cache-Control: no-store`
+   - `Permissions-Policy:` a list of features each with an empty allowlist, for example `camera=(), geolocation=(), microphone=(), payment=(), usb=()` among 68 names (ADR-0018)
    (The same scan of the address followed by `/style.css` has the same four first headers and no `Cache-Control`.)
 2. In a browser: the page offers sign-in and shows no project name.
 3. Sign in with GitHub. Read the address bar on the GitHub page (only the host and path, never the code or state) and note that you returned to the portal address with nothing after it.
