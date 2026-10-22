@@ -61,8 +61,8 @@ test("REQ-105 AC1: the five parts stand in the spec's order, and each fixture's 
 test("REQ-105 AC2: the lines of At risk in the kinds fixture are the fixed phrases of SPEC-0005 rule 10, exactly", async () => {
   const { html: page } = await html("kinds");
   assert.deepEqual(risk(page).map(textOf), [
-    "An item was due on 2026-09-01 and is overdue. (the item)",
-    "An item was due on 2026-10-13 and is overdue. (the item)",
+    "Overdue since 2026-09-01 (43 days). (the item)",
+    "Overdue since 2026-10-13 (1 day). (the item)",
     "Changes #9 (13 days) and #13 (12 days) have been open.",
     "Changes #6 (2 times) and #12 (1 time) were sent back.",
     "Housekeeping checks: 4 issues found. (the issue)",
@@ -169,7 +169,7 @@ test("REQ-105 AC3: the text of a residual is never shown, and an address other t
   const lines = risk(page);
   assert.equal(textOf(lines[2] as string), "Changes #9 (13 days) and #13 (12 days) have been open.");
   assert.deepEqual(hrefs(lines[2] as string), [PR(13)], "only the pull request that has a GitHub address is a link");
-  assert.equal(lines[0], "An item was due on 2026-09-01 and is overdue. (the item)");
+  assert.equal(lines[0], "Overdue since 2026-09-01 (43 days). (the item)");
 });
 
 test("REQ-105 AC2: a grouped entry of one day reads 1 day", async () => {
@@ -177,4 +177,15 @@ test("REQ-105 AC2: a grouped entry of one day reads 1 day", async () => {
     r.sections.at_risk[2].entries = [{ number: 9, days: 1 }, { number: 13, days: 12 }];
   });
   assert.equal(textOf(risk(page)[2] as string), "Changes #9 (1 day) and #13 (12 days) have been open.");
+});
+
+test("REQ-105 AC2: the overdue residual line carries the data's date and days, escaped and checked, and its link", async () => {
+  const { html: page } = await html("kinds", (r) => {
+    r.sections.at_risk[0].days = 7;
+    r.sections.at_risk[1].days = 1;
+  });
+  const lines = risk(page);
+  assert.equal(textOf(lines[0] as string), "Overdue since 2026-09-01 (7 days). (the item)");
+  assert.equal(textOf(lines[1] as string), "Overdue since 2026-10-13 (1 day). (the item)");
+  assert.deepEqual(hrefs(lines[0] as string), ["https://github.com/demo-org/demo-repo/blob/c0ffee0000000000000000000000000000000000/docs/adr/0001-accepted.md"]);
 });
