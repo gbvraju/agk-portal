@@ -47,12 +47,12 @@ const hrefs = (inner: string): string[] => [...inner.matchAll(/href="([^"]*)"/g)
 
 const FIXTURES = ["kinds", "busy", "quiet", "dirty-unknown", "empty"];
 
-test("REQ-105 AC1: Delivered and Time and review follow the opening and the notices, in that order, and no other part is shown yet", async () => {
+test("REQ-105 AC1: Delivered and Time and review follow the opening and the notices, in that order, and At risk is not shown yet", async () => {
   const { html: page } = await html("kinds");
   const at = (s: string): number => page.indexOf(s);
   assert.ok(at("Week 2026-W41:") < at("<h4>Delivered</h4>") && at("<h4>Delivered</h4>") < at("<h4>Time and review</h4>"));
-  for (const title of ["Proven", "Needs your decision", "At risk"]) assert.ok(!page.includes(`<h4>${title}</h4>`), `${title} is not built yet`);
-  assert.equal((page.match(/<h4>/g) ?? []).length, 2);
+  assert.ok(!page.includes("<h4>At risk</h4>"), "At risk is not built yet");
+  assert.equal((page.match(/<h4>/g) ?? []).length, 4);
 });
 
 test("REQ-105 AC2: every item of Delivered and of Time and review appears once, in the data's order, with its identifier, number, date, hours and link, for each fixture", async () => {
@@ -145,11 +145,11 @@ test("REQ-105 AC7: ten changes are lines and eleven are a summary, as the data s
 });
 
 test("REQ-105 AC4: a week with nothing in these two parts says Nothing this week for each, and no part that is not built says anything", async () => {
-  for (const name of ["quiet", "empty"]) {
+  for (const [name, expected] of [["quiet", 3], ["empty", 4]] as const) {
     const { html: page } = await html(name);
     assert.deepEqual(part(page, "Delivered"), { items: [], empty: true }, name);
     assert.deepEqual(part(page, "Time and review"), { items: [], empty: true }, name);
-    assert.equal((page.match(/Nothing this week\./g) ?? []).length, 2, `${name}: exactly the two built parts`);
+    assert.equal((page.match(/Nothing this week\./g) ?? []).length, expected, `${name}: exactly the built parts that are empty`);
   }
   const { html: page } = await html("kinds");
   assert.ok(!page.includes("Nothing this week."), "a part with items does not say it");
