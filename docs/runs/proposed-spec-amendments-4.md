@@ -69,7 +69,7 @@ Date: 2026-10-22 (from `date -u`). Approved specs are changed only through a pro
 
 **New text.**
 
-> 7. **Time and review** (the report's Cost) renders the items of `sections.cost`, in the order of the data: one `pull-request-cost` line per merged change (its `hours` from opening to merge and its `fix_verdicts` review rounds) and the `week-totals` line (changes merged; time from opening to merge in hours in total; review rounds in total; declared as not changing behaviour; "estimate: {within} of {counted} within range" or "estimate: none declared this week"). The hours are the decimal strings of the data; the page does no arithmetic and no rounding. A value that is `unknown` is "not known yet" with, for the totals, the count of `pull-request-cost` items whose value is `unknown` ("{k} of {n} changes"), never a number and never zero. Hours only: no money and no rate (Q-S0005-1 for the hours).
+> 7. **Time and review** (the report's Cost) renders the items of `sections.cost`, in the order of the data: one `pull-request-cost` line per merged change (its `hours` from opening to merge and its `fix_verdicts` review rounds) and the `week-totals` line (changes merged; time from opening to merge in hours in total; review rounds in total; declared as not changing behaviour; "estimate: {within} of {counted} within range" or "estimate: none declared this week"). The hours are the decimal strings of the data; the page does no arithmetic and no rounding. A value that is `unknown` is "not known yet", never a number and never zero; the page computes no count, so no "{k} of {n} changes" is shown unless the data carries the count (Q-B13-3). Hours only: no money and no rate (Q-S0005-1 for the hours).
 
 ## Rule 8
 
@@ -93,7 +93,7 @@ Date: 2026-10-22 (from `date -u`). Approved specs are changed only through a pro
 
 **New text.**
 
-> 11. **The parity test.** The tests render This week from each golden `report.json` (the kit's goldens under `tests/kit/fixtures/report/golden/`, copied as fixtures, public data with no token and no signed address) and compare the page with the data item by item: every item of every section appears once, in the data's order, with its identifiers, numbers, dates, counts, hour strings and links. A test changes one number in a golden and shows that only the line that depends on it changes. Where this repository's `scripts/agk/product_report.py` is at kit 0.39.0 or later, a test runs `python3 scripts/agk/product_report.py --facts FILE --week WEEK --json OUT` on the golden's facts and checks that `OUT` equals the golden (REQ-105 AC2 as worded, Q-B13-1). A kit upgrade that changes the schema number fails the document check (rule 13), and this spec is then amended to follow it.
+> 11. **The parity test.** The tests run this repository's own `scripts/agk/product_report.py` (kit 0.39.0 or later, which has `--json`) on each fixture facts document: `python3 scripts/agk/product_report.py --facts FILE --today D --week WEEK --json OUT`, and render This week from the `report.json` it writes. They compare the page with that data item by item: every item of every section appears once, in the data's order, with its identifiers, numbers, dates, counts, hour strings and links (REQ-105 AC2 as worded; Q-B13-1 ruled). A test changes one number in a fixture and shows that only the line that depends on it changes. A kit upgrade that changes the schema number fails the document check (rule 13), and this spec is then amended to follow it.
 
 ## Rule 12
 
@@ -101,7 +101,7 @@ Date: 2026-10-22 (from `date -u`). Approved specs are changed only through a pro
 
 **New text.**
 
-> 12. **Fixtures and tests.** The fixtures are `report.json` documents under `site/tests/fixtures/report/` copied from the kit's goldens, covering each kind of the closed list (the `kinds` golden), an empty week, a quiet week, a busy week, unknown values in each section, a dirty document, and documents that must be refused (rule 13) made from them. The tests are TypeScript files named `*.test.ts` under `site/tests/`, run by the npm command in `agk.toml` `project_tests`, each carrying the marker `REQ-105 ACn` it proves. They need no Python and no network, except the optional script test of rule 11.
+> 12. **Fixtures and tests.** The fixtures are facts documents under `site/tests/fixtures/report/` copied unchanged from the kit's own fixtures (public data, no token, no signed address): one covering each kind of the closed list (`kinds`), an empty week, a quiet week, a busy week, unknown values in each section and a dirty document; the `report.json` of each is written at test time by the repository's own script (rule 11), and documents that must be refused (rule 13) are made from it in the tests. The tests are TypeScript files named `*.test.ts` under `site/tests/`, run by the npm command in `agk.toml` `project_tests`, each carrying the marker `REQ-105 ACn` it proves. They need Python 3 (as `make governance` does) and no network.
 
 ## Rule 13
 

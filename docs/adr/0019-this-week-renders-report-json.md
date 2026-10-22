@@ -15,15 +15,16 @@ ADR-0011 added REQ-105 and SPEC-0005 on the product owner's rule that the page u
 1. The This week section renders the sections of `report.json`; the page computes no section, no date and no sum. The page and the report agree by construction.
 2. SPEC-0005 is amended accordingly by `docs/runs/proposed-spec-amendments-4.md` (Amendment 6: the rule of the section and rules 1 to 9, 11, 12 and a new rule 13), applied by this ADR in the same pull request. Rule 10 (the fixed phrases) is unchanged. The requirement text of REQ-105 is unchanged.
 3. The page checks `report.json` against the closed list of agk SPEC-0022 before it uses it; a report that fails the check, or an archive of an older kit without `report.json`, gives the card a reason and no This week (SPEC-0005 rule 13).
-4. The build is four items of the fourth brief (`docs/briefs/fourth-brief-this-week-from-report-json.md`): the document and the shell, Delivered with Time and review, Proven with Needs your decision, At risk. The third brief is superseded.
+4. The build is an Item 0 and four items of the fourth brief (`docs/briefs/fourth-brief-this-week-from-report-json.md`): the kit upgrade to the latest release (so that this repository's own `scripts/agk/product_report.py --json` exists), the document and the shell, Delivered with Time and review, Proven with Needs your decision, At risk. The third brief is superseded.
+5. The page computes no count (the maintainers' ruling on Q-B13-3): where the data carries no count of items lacking hours, a total that lacks hours reads "not known yet" without "{k} of {n}".
 
 ## Consequences
 
 - The page follows the report's schema number: a schema change fails the document check and needs a new amendment.
 - The page writes its own sentences from the kinds, as it always did; the wording of the report's markdown can change without the page changing.
-- The vendored `scripts/agk/product_report.py` of kit 0.32.0 is no longer the oracle of the page's tests; REQ-105 AC2's wording is met by the goldens now and by the script's `--json` output once the kit is upgraded (Q-B13-1).
+- The page's tests run this repository's own `scripts/agk/product_report.py --json` on copied kit fixtures, as REQ-105 AC2 words it; that needs the kit upgrade of Item 0 first (Q-B13-1 ruled).
 
 ## Residual
 
-- 2026-10-22: the goldens are copied from agk at its commit 2319194 and are assumed to match kit 0.39.0's schema (verify); the first artifact of kit 0.39.0 at staging settles it (due 2026-12-31).
-- 2026-10-22: the two card reasons for an unreadable or absent report are the builder's wording (due 2026-12-31).
+- 2026-10-22: REQ-105 AC5 says "not known yet with the count of items lacking it"; the page shows no count until agk's report carries one (a kit residual, recorded in the brief), so that clause is unmet; the requirement text is protected and is not changed here (Q-B13-6) (due 2026-12-31).
+- 2026-10-22: the two card reasons for an unreadable or absent report are accepted as written by the maintainers; the schema of `report.json` is settled by Item 0 (due 2026-12-31).
