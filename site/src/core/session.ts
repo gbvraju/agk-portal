@@ -6,7 +6,7 @@ import { base64urlDecode, base64urlEncode } from "./encoding.ts";
 import { serializeCookie } from "./cookies.ts";
 import type { GithubClient } from "./github.ts";
 import { redirectHome } from "./responses.ts";
-import { refusal } from "./signin.ts";
+import { refusal, tokenError } from "./signin.ts";
 import type { Core } from "./index.ts";
 
 export const SESSION_COOKIE = "__Host-session";
@@ -93,14 +93,22 @@ function parseToken(answer: unknown): { token: string; expiresInSeconds?: number
 // the token's own expiry; with no expiry in the answer it is 8 hours. Any failure is the refusal of the sign-in.
 export async function completeSignIn(core: Core, github: GithubClient, code: string): Promise<Response> {
   const { clientId, clientSecret, callbackUrl, sessionKey } = core.settings;
-  let parsed: ReturnType<typeof parseToken>;
+  const noToken = refusal({ kind: "token", error: "unknown" });
+  let response: Response;
   try {
-    const response = await github.exchangeCode({ clientId, clientSecret, code, redirectUri: callbackUrl });
-    parsed = response.ok ? parseToken(await response.json()) : undefined;
+    response = await github.exchangeCode({ clientId, clientSecret, code, redirectUri: callbackUrl });
   } catch {
-    return refusal();
+    return noToken;
   }
-  if (parsed === undefined) return refusal();
+  if (!response.ok) return refusal({ kind: "exchange", status: response.status });
+  let answer: unknown;
+  try {
+    answer = await response.json();
+  } catch {
+    return noToken;
+  }
+  const parsed = parseToken(answer);
+  if (parsed === undefined) return refusal({ kind: "token", error: tokenError(answer) });
   const now = core.now();
   const limit = now + SESSION_MAX_MS;
   const expiresAt = parsed.expiresInSeconds === undefined ? limit : Math.min(limit, now + parsed.expiresInSeconds * 1000);

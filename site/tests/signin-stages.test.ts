@@ -41,9 +41,9 @@ function build(exchange: () => Response | Promise<Response>) {
 const noteOf = (response: Response): string | undefined => response.headers.getSetCookie().find((c) => c.startsWith(`${NOTICE_COOKIE}=`));
 const valueOf = (cookie: string): string => cookie.split(";")[0]!.slice(cookie.indexOf("=") + 1);
 
-async function callback(app: (r: Request) => Promise<Response>, query: string, cookieState: string | undefined = STATE): Promise<Response> {
+async function callback(app: (r: Request) => Promise<Response>, query: string, cookieState: string | null = STATE): Promise<Response> {
   const headers: Record<string, string> = {};
-  if (cookieState !== undefined) headers["cookie"] = `${STATE_COOKIE}=${await hashState(cookieState)}`;
+  if (cookieState !== null) headers["cookie"] = `${STATE_COOKIE}=${await hashState(cookieState)}`;
   return app(new Request(`https://portal.example/callback?${query}`, { headers }));
 }
 
@@ -63,10 +63,10 @@ const STAGES = [
 
 test("REQ-102 AC3: a state that is missing, different or has no cookie says the sign-in state did not match, and GitHub is not called", async () => {
   const { app, calls } = build(() => new Response("{}"));
-  const cases: [string, string, string | undefined][] = [
+  const cases: [string, string, string | null][] = [
     ["missing state", `code=${CODE}`, STATE],
     ["different state", `code=${CODE}&state=${STATE}x`, STATE],
-    ["no cookie", `code=${CODE}&state=${STATE}`, undefined],
+    ["no cookie", `code=${CODE}&state=${STATE}`, null],
     ["different cookie", `code=${CODE}&state=${STATE}`, `${STATE}y`],
     ["no code and a different state", `state=${STATE}x`, STATE],
   ];
@@ -147,6 +147,7 @@ test("REQ-102 AC3: the notice cookie holds a code from a fixed list, nothing Git
     const home = await app(new Request("https://portal.example/", { headers: { cookie: `${NOTICE_COOKIE}=${value}` } }));
     const html = await home.text();
     assert.ok(!/did not match|returned no code|refused the code exchange|had no token/.test(html), `${value}: no stage is shown for a value off the list`);
+    assert.ok(!html.includes(SIGN_IN_FAILED_PHRASE), `${value}: a value off the list is not a notice at all`);
   }
   const old = await app(new Request("https://portal.example/", { headers: { cookie: `${NOTICE_COOKIE}=signin-failed` } }));
   assert.ok((await old.text()).includes(SIGN_IN_FAILED_PHRASE), "the former value still shows the general phrase");

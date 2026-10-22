@@ -46,7 +46,7 @@ function ownOrigin(callbackUrl: string): string | undefined {
 
 export function createApp(core: Core, options: AppOptions = {}): (request: Request) => Promise<Response> {
   const github = options.github;
-  const complete = options.complete ?? (github ? (code: string) => completeSignIn(core, github, code) : async () => refusal());
+  const complete = options.complete ?? (github ? (code: string) => completeSignIn(core, github, code) : async () => refusal({ kind: "token", error: "unknown" }));
   const projects = options.projects ?? (github ? (token: string) => listProjectCards(github, token, core.now()) : async () => []);
   return safely(async (request) => {
     const path = new URL(request.url).pathname;
@@ -70,7 +70,7 @@ export function createApp(core: Core, options: AppOptions = {}): (request: Reque
         return startSignIn(core.settings);
       case "/callback": {
         const verified = await verifyCallback(request);
-        if (!verified.ok) return refusal();
+        if (!verified.ok) return refusal({ kind: verified.stage });
         return withCookies(await complete(verified.code), [clearCookie(STATE_COOKIE)]);
       }
       case "/style.css":

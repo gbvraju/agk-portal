@@ -2,7 +2,7 @@ import { CONFIG_NAMES, requireSetting, type Clock, type Config } from "./config.
 
 export { CONFIG_NAMES, MissingSetting, requireSetting } from "./config.ts";
 export type { Clock, Config, ConfigName } from "./config.ts";
-export { API_HOST, AUTHORIZE_ADDRESS, TOKEN_ADDRESS, createGithubClient, guardedFetch } from "./github.ts";
+export { API_HOST, AUTHORIZE_ADDRESS, TOKEN_ADDRESS, USER_AGENT, createGithubClient, guardedFetch } from "./github.ts";
 export { EMPTY_LIST_PHRASE, createApp } from "./app.ts";
 export type { AppOptions } from "./app.ts";
 export { clearCookie, readCookie, serializeCookie } from "./cookies.ts";
@@ -26,12 +26,14 @@ export {
   SESSION_ENDED_PHRASE,
   SIGN_IN_FAILED_PHRASE,
   STATE_COOKIE,
+  TOKEN_ERRORS,
   constantTimeEqual,
   hashState,
   newState,
   offerPage,
   refusal,
   startSignIn,
+  tokenError,
   verifyCallback,
 } from "./signin.ts";
 export type { CodeExchange, GithubClient } from "./github.ts";

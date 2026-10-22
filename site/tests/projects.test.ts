@@ -188,7 +188,7 @@ test("REQ-101 AC7: every request is a GET to the GitHub API with the person's ow
     assert.equal(init?.redirect, "manual");
     const headers = new Headers(init?.headers);
     assert.equal(headers.get("authorization"), `Bearer ${TOKEN}`);
-    assert.deepEqual([...headers.keys()].sort(), ["accept", "authorization", "x-github-api-version"], "no other credential or header");
+    assert.deepEqual([...headers.keys()].sort(), ["accept", "authorization", "user-agent", "x-github-api-version"], "no other credential or header");
     assert.ok(!url.includes(TOKEN));
   }
   for (const file of readdirSync(coreDir)) {
