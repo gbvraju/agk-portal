@@ -162,7 +162,7 @@ test("REQ-105 AC2: the lines of Needs your decision are the fixed phrases of rul
     ["“Eta thing” is planned and no specification names it. (REQ-007)"],
   ]);
   for (const hidden of ["Draft one", "Proposed one", "Change number", "old item", "very long description", "spec-0002-notes", "0002-proposed.md"]) {
-    assert.ok(!page.includes(hidden), `${hidden} is not shown`);
+    assert.ok(!textOf(page).includes(hidden), `${hidden} is not shown as text (a path is only behind its link)`);
   }
 });
 
