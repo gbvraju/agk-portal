@@ -71,13 +71,16 @@ test("the test repositories are gbvraju/agk (public, has an artifact) and gbvraj
   assert.match(readFileSync(resolve(repoRoot, "docs", "runs", "residuals.md"), "utf8"), /deploy-cloudflare[^\n]*not testable with one account/i, "and of the register");
 });
 
-test("anyone with a GitHub account may sign in to staging and sees only the repositories where the App is installed and they have access (Q-B5-1)", () => {
-  assert.match(runbook, /Any account/);
-  assert.ok(!/only on this account/i.test(runbook), "the App is not limited to the maintainers' account");
+test("the App is installable only on the maintainers' account for staging; a person who signs in sees only the repositories where the App is installed and they have access (Q-B5-1)", () => {
+  assert.match(runbook, /Only on this account/, "least access: installation is not opened to other accounts");
+  assert.ok(!/Any account/.test(runbook), "the App is not widened");
   assert.match(runbook, /only the repositories where the App is installed and that they can read/i);
+  assert.match(runbook, /(verify)[^\n]*another person can sign in to an App installable only on its owner's account/i, "the open fact stays marked");
   const adr = readFileSync(resolve(repoRoot, "docs", "adr", "0016-deploy-cloudflare-workers-staging.md"), "utf8");
-  assert.match(adr, /anyone with a GitHub account may sign in/i);
-  assert.ok(!/maintainers decide who may sign in/i.test(adr), "the open question is closed");
+  assert.match(adr, /only on the maintainers' account/i, "the ADR says the same");
+  assert.ok(!/anyone with a GitHub account may sign in/i.test(adr), "the ADR does not promise sign-in to anyone");
+  assert.match(adr, /production decision/i, "opening installation to other accounts is a production decision");
+  assert.match(readFileSync(resolve(repoRoot, "docs", "runs", "residuals.md"), "utf8"), /deploy-cloudflare[^\n]*production decision[^\n]*other accounts|other accounts[^\n]*production decision/i, "recorded as a residual for production");
 });
 
 test("the runbook says what the maintainers do in Cloudflare and in GitHub, and that nothing is deployed from GitHub", () => {
