@@ -243,3 +243,10 @@ test("REQ-105 AC5: the proven outcome of the data other than the two listed is s
   });
   assert.equal(textOf(proven(page)[0] as string), "REQ-001 is proven (last change #5: new-outcome).");
 });
+
+test("REQ-105 AC5: a requirement not proven whose data lists no reason says reason not known yet, never an empty sentence", async () => {
+  const { html: page } = await html("kinds", (r) => {
+    r.sections.proven[1].reasons = [];
+  });
+  assert.equal(textOf(proven(page)[1] as string), "REQ-002 is not proven: reason not known yet.");
+});
