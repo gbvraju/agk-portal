@@ -314,3 +314,109 @@ test("REQ-101 AC7: the download address is built only from the validated reposit
   await assert.rejects(readFacts(github, TOKEN, "../../user", START), /not allowed/, "a name that is not owner/name is refused before any request");
   assert.equal(calls.length, 1);
 });
+
+// From kit 0.39.0 agk publishes two files in agk-facts-<week>: facts.json and report.json (the computed sections). The
+// reader accepts facts.json alone (older artifacts) or with report.json, in any order; report.json is checked (size,
+// checksum, method) and not read. Anything else is refused whole.
+const REPORT = JSON.stringify({ sections: ["Delivered"], anything: "not read yet" });
+const factsEntry = { name: "facts.json", data: JSON.stringify(FACTS) };
+const reportEntry = { name: "report.json", data: REPORT };
+
+test("REQ-101 AC2: an archive of facts.json and report.json, in either order, reads facts.json unchanged", async () => {
+  for (const entries of [[factsEntry, reportEntry], [reportEntry, factsEntry]]) {
+    const result = await factsOf(readable(505, zip(entries)));
+    assert.equal(result.kind, "facts");
+    if (result.kind === "facts") assert.deepEqual(result.document, FACTS, "facts.json as today");
+  }
+  const mixed = zip([{ ...factsEntry, method: 0 }, reportEntry]);
+  assert.equal((await factsOf(readable(505, mixed))).kind, "facts", "stored and deflated entries mix");
+  const html = await home(harness({ ...listing, [LIST]: { body: fixture("artifacts-weeks") }, [ZIP(505)]: { status: 302, location: SIGNED }, [SIGNED]: { body: zip([reportEntry, factsEntry]) } }).app);
+  assert.match(html, /acme\/api<\/a><\/h2>\s*<p>Facts read for 2026-W42\.<\/p>/);
+});
+
+test("REQ-101 AC2: report.json is not read: whatever its bytes are, it does not change what the page gets, and it is not parsed", async () => {
+  for (const data of ["not json at all", "", "{", "[1,2,3]", new Uint8Array([0xff, 0xfe, 0x00])]) {
+    const result = await factsOf(readable(505, zip([factsEntry, { name: "report.json", data }])));
+    assert.equal(result.kind, "facts", String(data));
+    if (result.kind === "facts") assert.deepEqual(result.document, FACTS);
+  }
+});
+
+test("REQ-101 AC3: an archive with report.json but no facts.json, a duplicate, a third entry or an odd name is refused whole", async () => {
+  const other = { name: "other.json", data: "{}" };
+  const cases: [string, Uint8Array][] = [
+    ["report.json alone", zip([reportEntry])],
+    ["report.json twice", zip([reportEntry, reportEntry])],
+    ["facts.json twice", zip([factsEntry, factsEntry])],
+    ["facts.json twice and report.json", zip([factsEntry, factsEntry, reportEntry])],
+    ["report.json twice and facts.json", zip([factsEntry, reportEntry, reportEntry])],
+    ["a third entry", zip([factsEntry, reportEntry, other])],
+    ["a third entry first", zip([other, factsEntry, reportEntry])],
+    ["facts.json and another name", zip([factsEntry, other])],
+    ["report.json and another name", zip([reportEntry, other])],
+    ["a directory entry", zip([factsEntry, reportEntry, { name: "dir/", data: "" }])],
+    ["upper case", zip([factsEntry, { name: "Report.json", data: REPORT }])],
+    ["a path", zip([factsEntry, { name: "dir/report.json", data: REPORT }])],
+    ["a parent path", zip([factsEntry, { name: "../report.json", data: REPORT }])],
+    ["a trailing slash", zip([factsEntry, { name: "report.json/", data: REPORT }])],
+    ["a trailing space", zip([factsEntry, { name: "report.json ", data: REPORT }])],
+    ["a different extension", zip([factsEntry, { name: "report.json.txt", data: REPORT }])],
+  ];
+  for (const [name, bytes] of cases) {
+    assert.deepEqual(await factsOf(readable(505, bytes)), { kind: "unknown", reason: ARCHIVE_REASON }, name);
+  }
+});
+
+test("REQ-101 AC3: bytes between the central directory and the end record, or an end record that counts fewer entries than the directory holds, refuse the archive", async () => {
+  const good = zip([factsEntry, reportEntry]);
+  const endAt = good.length - 22;
+  const padded = new Uint8Array(good.length + 8);
+  padded.set(good.subarray(0, endAt), 0);
+  padded.set(good.subarray(endAt), endAt + 8);
+  assert.deepEqual(await factsOf(readable(505, padded)), { kind: "unknown", reason: ARCHIVE_REASON }, "junk before the end record");
+  const fewer = good.slice();
+  new DataView(fewer.buffer).setUint16(endAt + 10, 1, true);
+  assert.deepEqual(await factsOf(readable(505, fewer)), { kind: "unknown", reason: ARCHIVE_REASON }, "the end record counts one entry, the directory holds two");
+  const more = good.slice();
+  new DataView(more.buffer).setUint16(endAt + 10, 3, true);
+  assert.deepEqual(await factsOf(readable(505, more)), { kind: "unknown", reason: ARCHIVE_REASON }, "the end record counts three entries");
+});
+
+test("REQ-101 AC3: each entry keeps its own checks: a report.json that is damaged, encrypted, too large or lies about its size refuses the archive, and so does a damaged facts.json beside a good report.json", async () => {
+  const big = new Uint8Array(2 * 1024 * 1024);
+  const cases: [string, Uint8Array][] = [
+    ["wrong checksum", zip([factsEntry, { ...reportEntry, crc: 1 }])],
+    ["wrong declared size", zip([factsEntry, { ...reportEntry, declaredSize: 3 }])],
+    ["wrong declared size, stored", zip([factsEntry, { ...reportEntry, method: 0, declaredSize: 3 }])],
+    ["declared larger than the stream", zip([factsEntry, { ...reportEntry, declaredSize: REPORT.length + 5 }])],
+    ["encrypted", zip([factsEntry, { ...reportEntry, flags: 1 }])],
+    ["another method", zip([factsEntry, { ...reportEntry, method: 12 }])],
+    ["too large", zip([factsEntry, { name: "report.json", data: big, raw: new Uint8Array(deflateRawSync(big)), declaredSize: big.length }])],
+    ["a bomb that lies about its size", zip([factsEntry, { name: "report.json", data: "x".repeat(10), raw: new Uint8Array(deflateRawSync(big)), declaredSize: 10 }])],
+    ["truncated stream", zip([factsEntry, { ...reportEntry, raw: new Uint8Array(deflateRawSync(REPORT)).slice(0, 4) }])],
+    ["facts.json with a wrong checksum", zip([{ ...factsEntry, crc: 1 }, reportEntry])],
+    ["facts.json too large", zip([{ name: "facts.json", data: big, raw: new Uint8Array(deflateRawSync(big)), declaredSize: big.length }, reportEntry])],
+  ];
+  for (const [name, bytes] of cases) {
+    assert.deepEqual(await factsOf(readable(505, bytes)), { kind: "unknown", reason: ARCHIVE_REASON }, name);
+  }
+});
+
+test("REQ-101 AC3: two entries of the largest size each fit in the archive limit, and an archive past the limit is not read to its end", async () => {
+  const factsBig = new TextEncoder().encode(`{"schema":1,"pad":"${"a".repeat(1024 * 1024 - 40)}"}`);
+  assert.ok(factsBig.length <= 1024 * 1024);
+  const full = zip([{ name: "facts.json", data: factsBig, method: 0 }, { name: "report.json", data: new Uint8Array(1024 * 1024).fill(0x61), method: 0 }]);
+  assert.ok(full.length > 2 * 1024 * 1024 && full.length <= 3 * 1024 * 1024, `the largest allowed archive is ${full.length} bytes`);
+  const result = await factsOf(readable(505, full));
+  assert.equal(result.kind, "facts", "two entries of the largest allowed size are read");
+  let pulled = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulled += 1;
+      if (pulled > 50) controller.close();
+      else controller.enqueue(new Uint8Array(1024 * 1024));
+    },
+  });
+  assert.deepEqual(await factsOf({ [LIST]: { body: fixture("artifacts-weeks") }, [ZIP(505)]: { status: 302, location: SIGNED }, [SIGNED]: { body } }), { kind: "unknown", reason: ARCHIVE_REASON });
+  assert.ok(pulled <= 5, `the download stops at the limit (pulled ${pulled} megabytes)`);
+});

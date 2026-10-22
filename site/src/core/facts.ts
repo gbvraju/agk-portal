@@ -21,8 +21,8 @@ const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const FACTS_NAME = /^agk-facts-(\d{4}-W\d{2})$/;
 const PER_PAGE = 100;
 const MAX_PAGES = 10;
-// The archive of one facts document is small; a larger answer is not read.
-const MAX_ARCHIVE_BYTES = 2 * MAX_FACTS_BYTES;
+// The archive of the facts document and the report is small (two entries of at most one megabyte each, and their headers); a larger answer is not read.
+const MAX_ARCHIVE_BYTES = 3 * MAX_FACTS_BYTES;
 
 class Stop extends Error {
   constructor(readonly result: FactsResult) {
