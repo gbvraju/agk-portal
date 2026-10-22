@@ -73,7 +73,7 @@ test("REQ-103 AC7: the handler fills Config from the env's secrets and variables
     const url = `https://portal.example${path}`;
     await same(await w.fetch(new Request(url), fakeEnv(), fakeContext), await core(new Request(url)), path);
   }
-  const post = (): Request => new Request("https://portal.example/signout", { method: "POST" });
+  const post = (): Request => new Request("https://portal.example/signout", { method: "POST", headers: { origin: "https://portal.example" } });
   await same(await w.fetch(post(), fakeEnv(), fakeContext), await core(post()), "POST /signout");
 });
 

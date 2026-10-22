@@ -176,7 +176,7 @@ test("REQ-102 AC7: signing out is a POST that clears the cookie and calls nothin
   const h = harness(KEY_A);
   const cookie = valueOf(setCookie(await signIn(h), SESSION_COOKIE)!);
   const callsBefore = h.calls.length;
-  const out = await h.app(new Request("https://portal.example/signout", { method: "POST", headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }));
+  const out = await h.app(new Request("https://portal.example/signout", { method: "POST", headers: { cookie: `${SESSION_COOKIE}=${cookie}`, origin: "https://portal.example" } }));
   assert.equal(out.status, 200);
   assert.ok((await out.text()).includes('<a href="/login">Sign in with GitHub</a>'), "the sign-in offer");
   const cleared = setCookie(out, SESSION_COOKIE)!;
