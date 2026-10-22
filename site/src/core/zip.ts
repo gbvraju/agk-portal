@@ -43,11 +43,11 @@ async function inflate(data: Uint8Array, expected: number): Promise<Uint8Array |
   return length === expected ? out : undefined;
 }
 
-// The bytes of `facts.json`, or undefined for anything that is not an archive of `facts.json` alone or of `facts.json`
-// and `report.json` in either order. Every entry is checked (not encrypted, stored or deflated, within its size cap,
-// size and checksum right); `report.json` is checked and not read. A duplicate, a missing `facts.json` and any other
-// entry refuse the whole archive.
-export async function readFactsFile(bytes: Uint8Array): Promise<Uint8Array | undefined> {
+// The bytes of `facts.json` and, when the archive holds it, of `report.json`; undefined for anything that is not an archive
+// of `facts.json` alone or of `facts.json` and `report.json` in either order. Every entry is checked (not encrypted, stored
+// or deflated, within its size cap, size and checksum right). A duplicate, a missing `facts.json` and any other entry
+// refuse the whole archive.
+export async function readArchive(bytes: Uint8Array): Promise<{ facts: Uint8Array; report: Uint8Array | undefined } | undefined> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let end = -1;
   for (let at = bytes.length - 22; at >= Math.max(0, bytes.length - 22 - 0xffff); at -= 1) {
@@ -63,6 +63,7 @@ export async function readFactsFile(bytes: Uint8Array): Promise<Uint8Array | und
   let at = directoryOffset;
   const seen = new Set<string>();
   let facts: Uint8Array | undefined;
+  let report: Uint8Array | undefined;
   for (let n = 0; n < entries; n += 1) {
     if (at + 46 > end || view.getUint32(at, true) !== CENTRAL_SIGNATURE) return undefined;
     const flags = view.getUint16(at + 8, true);
@@ -85,7 +86,8 @@ export async function readFactsFile(bytes: Uint8Array): Promise<Uint8Array | und
     const content = method === 0 ? (stored.length === size ? stored : undefined) : await inflate(stored, size);
     if (content === undefined || crc32(content) !== crc) return undefined;
     if (name === FACTS) facts = content;
+    else report = content;
     at = next;
   }
-  return at === end ? facts : undefined;
+  return at === end && facts !== undefined ? { facts, report } : undefined;
 }
