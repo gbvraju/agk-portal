@@ -25,9 +25,69 @@ function escapeText(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+// Characters a browser removes or decodes before it reads an address: so "java&#9;script:" is still "javascript:".
+function plainAddress(value: string): string {
+  const named: Record<string, string> = { tab: "\t", newline: "\n", colon: ":", lpar: "(" };
+  const decoded = value
+    .replace(/&#x([0-9a-f]+);?/gi, (_m, hex: string) => String.fromCodePoint(Math.min(parseInt(hex, 16), 0x10ffff)))
+    .replace(/&#([0-9]+);?/g, (_m, dec: string) => String.fromCodePoint(Math.min(parseInt(dec, 10), 0x10ffff)))
+    .replace(/&(tab|newline|colon|lpar);/gi, (_m, name: string) => named[name.toLowerCase()] ?? "");
+  return decoded.replace(/[\u0000-\u0020\u007f-\u009f]/g, "").toLowerCase();
+}
+
+// The markup guard: it reads the tags and their attributes, never the text between them. Text reaches a page only
+// escaped, so words such as "style =" or "onclick=" in a title are text and render; a script or style element, a style
+// attribute, an event-handler attribute, a javascript: address, a comment or a tag that never ends is refused.
 function assertAllowed(html: string): void {
-  if (/<script|<style|\sstyle\s*=|\son[a-z]+\s*=|javascript:/i.test(html)) {
+  const refuse = (): never => {
     throw new Error("markup is not allowed: no script, no event handler and no inline style");
+  };
+  let at = 0;
+  for (;;) {
+    at = html.indexOf("<", at);
+    if (at < 0) return;
+    if (html.startsWith("<!--", at) || html.startsWith("<?", at) || html.startsWith("<![", at)) refuse();
+    if (html.startsWith("<!", at)) {
+      if (!/^<!doctype html>/i.test(html.slice(at, at + 15))) refuse();
+      at += 15;
+      continue;
+    }
+    const open = /^<\/?([A-Za-z][A-Za-z0-9:-]*)/.exec(html.slice(at, at + 64));
+    if (open === null) {
+      // A "<" that starts no tag is text.
+      at += 1;
+      continue;
+    }
+    const name = (open[1] ?? "").toLowerCase();
+    if (name === "script" || name === "style") refuse();
+    let i = at + open[0].length;
+    for (;;) {
+      while (i < html.length && /[\s/]/.test(html.charAt(i))) i += 1;
+      if (i >= html.length) refuse();
+      if (html.charAt(i) === ">") break;
+      const start = i;
+      while (i < html.length && !/[\s/=>]/.test(html.charAt(i))) i += 1;
+      const attribute = html.slice(start, i).toLowerCase();
+      if (attribute === "" || attribute === "style" || attribute.startsWith("on") || /[<"'`]/.test(attribute)) refuse();
+      while (i < html.length && /\s/.test(html.charAt(i))) i += 1;
+      if (html.charAt(i) !== "=") continue;
+      i += 1;
+      while (i < html.length && /\s/.test(html.charAt(i))) i += 1;
+      const quote = html.charAt(i);
+      let value: string;
+      if (quote === '"' || quote === "'") {
+        const end = html.indexOf(quote, i + 1);
+        if (end < 0) refuse();
+        value = html.slice(i + 1, end);
+        i = end + 1;
+      } else {
+        const from = i;
+        while (i < html.length && !/[\s>]/.test(html.charAt(i))) i += 1;
+        value = html.slice(from, i);
+      }
+      if (plainAddress(value).startsWith("javascript:")) refuse();
+    }
+    at = i + 1;
   }
 }
 
