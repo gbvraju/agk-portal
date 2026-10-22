@@ -18,13 +18,14 @@ Date 2026-10-22 (from `date -u`). Written by the builder from the maintainers' w
 5. The `gbvraju/agk` card appeared only after the App's installation was given the repository `agk`: the installation had only `agk-proof-private` before.
 6. Sign-out: the page showed "Page not found". Most likely cause, as the maintainers put it: with the pages' `Referrer-Policy: no-referrer` the browser serialises the Origin of a form POST as "null", so the Origin check added in PR #29 refused the person's own sign-out. It is browser behaviour the Node tests could not show, and the ruling Q-B6-1 missed it. The fix is PR #32 (the request is also answered when Origin is "null" or missing and the browser's `Sec-Fetch-Site` is `same-origin`).
 7. Retry after the merge of PR #32 (maintainers, 2026-10-22): sign-out now returns to the sign-in page. The fix is confirmed at staging; the cause (Origin "null" under `Referrer-Policy: no-referrer`) is still the maintainers' reading, not read from the request.
-8. Header scan (securityheaders.com, 2026-10-22): grade A. Strict-Transport-Security, Content-Security-Policy, Referrer-Policy, X-Frame-Options (derived from `frame-ancestors`) and X-Content-Type-Options pass; Permissions-Policy is missing. A change to send it is queued (see "What stays open").
+8. Header scan (securityheaders.com, 2026-10-22): grade A. Strict-Transport-Security, Content-Security-Policy, Referrer-Policy, X-Frame-Options (derived from `frame-ancestors`) and X-Content-Type-Options pass; Permissions-Policy is missing. A change to send it was queued (PR #36).
+9. Header scan after PR #36 (maintainers, 2026-10-22): securityheaders.com grades the staging address A+, with Permissions-Policy present. PR #36 is confirmed at staging.
 
 ## The runbook's checks
 
 | Check | Result |
 | --- | --- |
-| 1 Signed out, the response headers (securityheaders.com or curl) | done: grade A; five headers pass; Permissions-Policy missing (finding) |
+| 1 Signed out, the response headers (securityheaders.com or curl) | done: grade A with Permissions-Policy missing (finding); after PR #36, grade A+ with Permissions-Policy present |
 | 2 Signed out, the page offers sign-in and shows no project name | not reported separately; the first sign-in started from the offer |
 | 3 Sign in; return to the portal address | done: authorization succeeded; the return failed twice (see "What happened"), then worked after the credentials were corrected |
 | 4 Signed in: the cards | done: the two cards above; a repository the person cannot read is not testable with one account (residual) |
@@ -52,16 +53,16 @@ Each row is a `(verify)` mark of the repository and what the words above show ab
 | `keep_vars`: that a deploy keeps the settings put in the dashboard | no | not reported (the credentials were set after the build) |
 | The `User-Agent` header | partly | with the header the exchange reached GitHub and GitHub answered with its own error name; the credentials were wrong before and after PR #30, so the record cannot say that the missing header alone caused the first failure, nor that Workers' fetch sends none; the portal works with the header on Workers |
 | The Origin header on a sign-out through Workers (PR #29) | corrected, then yes | the sign-out showed "Page not found": the Origin check of PR #29 refused the person's own request (most likely the browser sent Origin "null" under `Referrer-Policy: no-referrer`; not read directly); PR #32 answers it by `Sec-Fetch-Site`, and after its merge sign-out returns to the sign-in page |
-| The security headers on the staging address | yes, except one | securityheaders.com grade A: HSTS, CSP, Referrer-Policy, X-Frame-Options (from `frame-ancestors`) and X-Content-Type-Options pass; Permissions-Policy is missing |
+| The security headers on the staging address | yes | securityheaders.com grade A (HSTS, CSP, Referrer-Policy, X-Frame-Options from `frame-ancestors` and X-Content-Type-Options pass; Permissions-Policy missing), then A+ with Permissions-Policy present after PR #36 |
 
 ## Findings that are not `(verify)` marks
 
 - The installation must include each repository to be shown: a repository the App is not installed on is never listed (REQ-101 AC6 as designed). The runbook's step 3 should say "give the installation the repository, not only the App" if it does not (a later change; not made here).
 - Cloudflare's pull-request builds read the repository root: the kit's `pyproject.toml` made the build try a Python install. The build root for Workers Builds is `site`, but the detection ran at the root for pull-request builds; the maintainers recorded it in agk as a kit defect. Until it is fixed, a pull-request build on Cloudflare can fail without meaning that the code is wrong.
 - The Origin of a form POST is "null" when the page's Referrer-Policy is `no-referrer`, so an Origin-only check refuses the person's own sign-out. The reading of Q-B6-1 was corrected (decisions log, PR #32), and the retry confirmed the sign-out; a browser-only behaviour is found at staging and nowhere else, which is what the Node-vs-Workers-and-browsers residual says.
-- The security headers were checked by a public scanner, as the runbook says for a phone: grade A. The missing Permissions-Policy is a gap in SPEC-0004 rule 1, which is Approved; it is changed through a proposed amendment applied by an ADR, in a queued pull request.
+- The security headers were checked by a public scanner, as the runbook says for a phone: grade A. The missing Permissions-Policy was a gap in SPEC-0004 rule 1, which is Approved; it was changed through a proposed amendment applied by an ADR (PR #36), and the rescan graded A+.
 - A misconfigured client id or secret is told apart from a code problem by the stage phrase added in PR #30; that worked as designed.
 
 ## What stays open
 
-Listed in `docs/runs/residuals.md`: the Permissions-Policy header (a queued pull request: a proposed amendment of SPEC-0004 rule 1, an ADR, the header on every response, tests first), the 8-hour expiry and the expiry field name, `keep_vars`, an env binding as an object, the `User-Agent` isolation, another person signing in, and the residuals that were already open (a repository the tester cannot read; the differences between Node and Workers).
+Listed in `docs/runs/residuals.md`: the 8-hour expiry and the expiry field name, `keep_vars`, an env binding as an object, the `User-Agent` isolation, another person signing in, and the residuals that were already open (a repository the tester cannot read; the differences between Node and Workers).
