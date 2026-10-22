@@ -1,0 +1,39 @@
+{
+  "adrs": [],
+  "commit": "f3f7230da79e4fa05485154b3d244519894adbe0",
+  "config": {
+    "default_branch": "main",
+    "inbox_hours": 48,
+    "project_tests_declared": false,
+    "test_dirs": [
+      "tests"
+    ],
+    "test_patterns": [
+      "probe_*.py"
+    ]
+  },
+  "dirty": false,
+  "drift": {
+    "counts": {
+      "D1": 0,
+      "D2": 0,
+      "D3": 0,
+      "D4": 0,
+      "D5": 0,
+      "D6": 0,
+      "D7": 0
+    },
+    "total": 0
+  },
+  "issues": [],
+  "kit_version": "unknown",
+  "markers": [],
+  "pull_requests": [],
+  "questions": [],
+  "repo": "demo-org/demo-repo",
+  "requirements": [],
+  "residuals": [],
+  "schema": 1,
+  "specs": [],
+  "today": "2026-10-14"
+}
