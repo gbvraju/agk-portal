@@ -93,19 +93,18 @@ function parseToken(answer: unknown): { token: string; expiresInSeconds?: number
 // the token's own expiry; with no expiry in the answer it is 8 hours. Any failure is the refusal of the sign-in.
 export async function completeSignIn(core: Core, github: GithubClient, code: string): Promise<Response> {
   const { clientId, clientSecret, callbackUrl, sessionKey } = core.settings;
-  const noToken = refusal({ kind: "token", error: "unknown" });
   let response: Response;
   try {
     response = await github.exchangeCode({ clientId, clientSecret, code, redirectUri: callbackUrl });
   } catch {
-    return noToken;
+    return refusal({ kind: "request" });
   }
   if (!response.ok) return refusal({ kind: "exchange", status: response.status });
   let answer: unknown;
   try {
     answer = await response.json();
   } catch {
-    return noToken;
+    return refusal({ kind: "unreadable" });
   }
   const parsed = parseToken(answer);
   if (parsed === undefined) return refusal({ kind: "token", error: tokenError(answer) });
