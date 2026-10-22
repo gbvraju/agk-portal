@@ -119,20 +119,61 @@ test("REQ-102 AC4: an answer with no token names GitHub's own error only when it
     assert.ok(html.includes("answer had no token (unknown)."), `${JSON.stringify(error)}: ${html}`);
     assert.ok(!html.includes("<script>") && !html.includes("unexpected_thing"));
   }
-  for (const body of ["{}", '{"access_token":""}', '{"access_token":7}', "[]", "null", "not json"]) {
+  for (const body of ["{}", '{"access_token":""}', '{"access_token":7}', "[]", "null", "7", '"text"', "true"]) {
     const { app } = build(() => new Response(body));
     const { html } = await shown(app, await callback(app, `code=${CODE}&state=${STATE}`));
     assert.ok(html.includes("answer had no token (unknown)."), `${body}: ${html}`);
   }
 });
 
-test("REQ-102 AC4: a failed request to GitHub also reads as an answer with no token, in the fixed list", async () => {
-  const { app } = build(() => {
-    throw new Error(`network down ${SECRET}`);
-  });
-  const { html } = await shown(app, await callback(app, `code=${CODE}&state=${STATE}`));
-  assert.ok(html.includes("answer had no token (unknown)."));
-  assert.ok(!html.includes("network down") && !html.includes(SECRET));
+test("REQ-102 AC4: a request to GitHub that fails says so, in its own fixed phrase, with no detail", async () => {
+  for (const thrown of [new Error(`network down ${SECRET}`), new TypeError("fetch failed"), "a string", 7, null]) {
+    const { app, calls } = build(() => {
+      throw thrown;
+    });
+    const refusal = await callback(app, `code=${CODE}&state=${STATE}`);
+    const { html, cleared } = await shown(app, refusal);
+    assert.ok(html.includes("The request to GitHub failed."), `${String(thrown)}: ${html}`);
+    assert.ok(html.includes(SIGN_IN_FAILED_PHRASE) && cleared);
+    assert.ok(!html.includes("network down") && !html.includes(SECRET) && !html.includes("fetch failed") && !html.includes("had no token"), "no detail and no other stage");
+    assert.equal(calls.length, 1);
+    assert.ok(!refusal.headers.getSetCookie().some((c) => c.startsWith("__Host-session")), "no session");
+  }
+});
+
+test("REQ-102 AC4: an answer that is not JSON, or breaks while it is read, says GitHub's answer could not be read", async () => {
+  const broken = (): Response =>
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"access_token":'));
+          controller.error(new Error(`stream broke ${SECRET}`));
+        },
+      }),
+    );
+  const answers: (() => Response)[] = [
+    () => new Response("not json"),
+    () => new Response(""),
+    () => new Response("<html><body>Bad gateway</body></html>"),
+    () => new Response('{"access_token":'),
+    () => new Response("access_token=gho_abc&token_type=bearer"),
+    broken,
+  ];
+  for (const [i, answer] of answers.entries()) {
+    const { app } = build(answer);
+    const { html, cleared } = await shown(app, await callback(app, `code=${CODE}&state=${STATE}`));
+    assert.ok(html.includes("GitHub's answer could not be read."), `${i}: ${html}`);
+    assert.ok(cleared && !html.includes("had no token") && !html.includes("stream broke") && !html.includes("gho_abc") && !html.includes(SECRET), `${i}: no detail`);
+  }
+});
+
+test("REQ-102 AC4: a status other than 200 is still the refused exchange with its status, whatever the body is", async () => {
+  for (const body of ["not json", "", "{}", '{"error":"access_denied"}']) {
+    const { app } = build(() => new Response(body, { status: 502 }));
+    const { html } = await shown(app, await callback(app, `code=${CODE}&state=${STATE}`));
+    assert.ok(html.includes("GitHub refused the code exchange (HTTP 502)."), `${body}: ${html}`);
+    assert.ok(!html.includes("could not be read") && !html.includes("had no token"));
+  }
 });
 
 test("REQ-102 AC3: the notice cookie holds a code from a fixed list, nothing GitHub sent, and a forged value shows only the general phrase", async () => {
@@ -142,12 +183,17 @@ test("REQ-102 AC3: the notice cookie holds a code from a fixed list, nothing Git
   assert.match(valueOf(notice), /^[A-Za-z0-9_-]+$/);
   for (const attribute of ["Path=/", "Max-Age=60", "Secure", "HttpOnly", "SameSite=Lax"]) assert.ok(notice.includes(attribute), attribute);
   assert.ok(!notice.includes(CODE) && !notice.includes(STATE) && !notice.includes(SECRET));
-  const forged = ["failed-token-script", "failed-http-99", "failed-http-1000", "failed-http-4x1", "failed-token-ACCESS_DENIED", "failed-state-extra", "failed-", "failed", "x", "failed-http-401-402"];
+  const forged = ["failed-request-x", "failed-unreadable-x", "failed-requests", "failed-unread", "failed-token-script", "failed-http-99", "failed-http-1000", "failed-http-4x1", "failed-token-ACCESS_DENIED", "failed-state-extra", "failed-", "failed", "x", "failed-http-401-402"];
   for (const value of forged) {
     const home = await app(new Request("https://portal.example/", { headers: { cookie: `${NOTICE_COOKIE}=${value}` } }));
     const html = await home.text();
-    assert.ok(!/did not match|returned no code|refused the code exchange|had no token/.test(html), `${value}: no stage is shown for a value off the list`);
+    assert.ok(!/did not match|returned no code|refused the code exchange|had no token|request to GitHub failed|could not be read/.test(html), `${value}: no stage is shown for a value off the list`);
     assert.ok(!html.includes(SIGN_IN_FAILED_PHRASE), `${value}: a value off the list is not a notice at all`);
+  }
+  for (const [value, phrase] of [["failed-request", "The request to GitHub failed."], ["failed-unreadable", "GitHub's answer could not be read."]] as const) {
+    const home = await app(new Request("https://portal.example/", { headers: { cookie: `${NOTICE_COOKIE}=${value}` } }));
+    const html = await home.text();
+    assert.ok(html.includes(SIGN_IN_FAILED_PHRASE) && html.includes(phrase), value);
   }
   const old = await app(new Request("https://portal.example/", { headers: { cookie: `${NOTICE_COOKIE}=signin-failed` } }));
   assert.ok((await old.text()).includes(SIGN_IN_FAILED_PHRASE), "the former value still shows the general phrase");
