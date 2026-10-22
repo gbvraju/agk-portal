@@ -28,9 +28,10 @@ function app(callbackUrl = "https://portal.example/callback") {
 }
 
 const cookie = async (): Promise<string> => `${SESSION_COOKIE}=${await sealSession({ token: TOKEN, expiresAt: START + 3_600_000 }, KEY)}`;
-const post = async (origin: string | undefined, url = "https://portal.example/signout"): Promise<Request> => {
+const post = async (origin: string | undefined, fetchSite?: string, url = "https://portal.example/signout"): Promise<Request> => {
   const headers: Record<string, string> = { cookie: await cookie() };
   if (origin !== undefined) headers["origin"] = origin;
+  if (fetchSite !== undefined) headers["sec-fetch-site"] = fetchSite;
   return new Request(url, { method: "POST", headers });
 };
 
@@ -107,4 +108,69 @@ test("REQ-102 AC7: the sign-out form still posts to /signout with no field, and 
   assert.equal(get.status, 404, "a GET never signs out");
   const put = await handle(new Request("https://portal.example/signout", { method: "PUT", headers: { cookie: await cookie(), origin: "https://portal.example" } }));
   assert.equal(put.status, 404);
+});
+
+// With Referrer-Policy: no-referrer a browser serialises the Origin of a form POST as "null" (seen at staging, where the
+// first sign-out showed "Page not found"). The browser's own Sec-Fetch-Site, which a page cannot set, tells a request from
+// this site from one of another.
+test("REQ-102 AC7: Origin \"null\" or no Origin is answered when Sec-Fetch-Site is same-origin, and signs the person out", async () => {
+  for (const origin of ["null", undefined]) {
+    const { handle } = app();
+    const out = await handle(await post(origin, "same-origin"));
+    assert.equal(out.status, 200, String(origin));
+    assert.ok(out.headers.getSetCookie().some((c) => c.startsWith(`${SESSION_COOKIE}=`) && c.includes("Max-Age=0")), "the cookie is cleared");
+    assert.ok((await out.text()).includes('<a href="/login">Sign in with GitHub</a>'));
+  }
+});
+
+test("REQ-102 AC7: Origin \"null\" or no Origin is refused unless Sec-Fetch-Site is exactly same-origin", async () => {
+  const sites: (string | undefined)[] = ["same-site", "cross-site", "none", undefined, "", "Same-Origin", "SAME-ORIGIN", "same-origin, cross-site", "cross-site, same-origin", "same-origin ,", "same_origin", "same-origin.evil.example", "null"];
+  for (const origin of ["null", undefined]) {
+    for (const site of sites) {
+      const { handle, calls } = app();
+      const out = await handle(await post(origin, site));
+      assert.equal(out.status, 404, `Origin ${String(origin)}, Sec-Fetch-Site ${JSON.stringify(site)}`);
+      assert.deepEqual(out.headers.getSetCookie(), [], "nothing is cleared");
+      assert.deepEqual(calls, []);
+    }
+  }
+});
+
+test("REQ-102 AC7: a named foreign Origin or an empty Origin is refused even when Sec-Fetch-Site says same-origin", async () => {
+  for (const origin of ["https://evil.example", "http://portal.example", "https://portal.example:8443", "https://portal.example/", "", "NULL", "nul", "https://portal.example.evil.example"]) {
+    const { handle } = app();
+    const out = await handle(await post(origin, "same-origin"));
+    assert.equal(out.status, 404, JSON.stringify(origin));
+    assert.deepEqual(out.headers.getSetCookie(), []);
+  }
+});
+
+test("REQ-102 AC7: the page's own origin is still answered whatever Sec-Fetch-Site says, as before", async () => {
+  for (const site of ["same-origin", "same-site", "cross-site", "none", undefined]) {
+    const { handle } = app();
+    const out = await handle(await post("https://portal.example", site));
+    assert.equal(out.status, 200, String(site));
+  }
+});
+
+test("REQ-102 AC7: a CALLBACK_URL that is not an address refuses every sign-out, Sec-Fetch-Site or not", async () => {
+  for (const callbackUrl of ["not a url", "/callback", "ftp://portal.example/callback"]) {
+    const { handle } = app(callbackUrl);
+    for (const origin of ["null", undefined, "https://portal.example"]) {
+      const out = await handle(await post(origin, "same-origin"));
+      assert.equal(out.status, 404, `${callbackUrl} ${String(origin)}`);
+    }
+  }
+});
+
+test("SPEC-0004 rule 1: the pages keep Referrer-Policy: no-referrer, and the sign-out form asks for no other policy", async () => {
+  const { handle } = app();
+  const home = await handle(new Request("https://portal.example/", { headers: { cookie: await cookie() } }));
+  assert.equal(home.headers.get("referrer-policy"), "no-referrer");
+  const html = await home.text();
+  assert.ok(!/referrerpolicy|rel="[^"]*noreferrer/i.test(html), "no per-element policy");
+  const out = await handle(await post("null", "same-origin"));
+  assert.equal(out.headers.get("referrer-policy"), "no-referrer");
+  const offer = await handle(new Request("https://portal.example/"));
+  assert.equal(offer.headers.get("referrer-policy"), "no-referrer");
 });
