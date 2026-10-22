@@ -14,6 +14,7 @@ Each open line is `- <source> | <text> | (due YYYY-MM-DD) | open`. The source is
 - site/src/core/facts.ts 2026-10-21 | the page reads the artifacts of every repository on every request, with no cache, because the server holds no storage (SPEC-0002 rule 5); a per-person cache would need its own ruling | (due 2026-12-31) | open
 - site/src/adapters/cloudflare/index.ts 2026-10-21 | the Workers module shape `export default { fetch(request, env, context) }`, a global `fetch` and `Date.now` inside a Worker, and that an env binding is an object while a secret and a variable are text are from memory of Cloudflare's documentation and were run only in Node with a fake env (verify); the first deploy (Item 9) confirms them | (due 2026-12-31) | open
 - docs/runs/deploy-cloudflare.md 2026-10-22 | a repository the tester cannot read, which must never be listed, named or counted (REQ-101 AC6), is not testable with one account on staging; the recorded-answer test covers it; a second GitHub account would test it live | (due 2026-12-31) | open
+- docs/runs/deploy-cloudflare.md 2026-10-22 | the staging App is installable only on the maintainers' account (least access); opening installation to other accounts is a production decision, and whether another person can sign in to an App installable only on its owner's account is unconfirmed (verify) | (due 2026-12-31) | open
 
 ## Closed (not findings)
 
