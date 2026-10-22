@@ -1,6 +1,6 @@
 # ADR-0018: Every response carries a Permissions-Policy that denies every browser feature
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-22
 - Deciders: maintainers
 - Related: ADR-0006, ADR-0016
