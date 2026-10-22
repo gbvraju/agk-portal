@@ -172,7 +172,7 @@ function groupedLine(item: ReportItem, one: (e: Record<string, unknown>) => stri
 function atRiskLine(item: ReportItem): string {
   switch (item.kind) {
     case "residual-overdue":
-      return `An item was due on ${escapeText(String(item["due"]))} and is overdue.${item.links.length === 0 ? "" : ` ${reference(item, "the item")}`}`;
+      return `Overdue since ${escapeText(String(item["due"]))} (${plural(item["days"] as number, "day", "days")}).${item.links.length === 0 ? "" : ` ${reference(item, "the item")}`}`;
     case "pull-requests-open-long":
       return groupedLine(item, (e) => `A change has been open for ${plural(e["days"] as number, "day", "days")}.`, "have been open.", (e) => ` (${plural(e["days"] as number, "day", "days")})`);
     case "pull-requests-sent-back":
