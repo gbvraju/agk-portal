@@ -1,6 +1,6 @@
 # ADR-0016: The portal is published to a staging Worker by Cloudflare's Git integration
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-22
 - Deciders: maintainers
 - Related: ADR-0006, ADR-0010, ADR-0015
