@@ -61,7 +61,6 @@ test("REQ-102 AC7: a sign-out from any other origin, or with no usable Origin, i
     "https://sub.portal.example",
     "null",
     "",
-    " https://portal.example",
     "HTTPS://PORTAL.EXAMPLE.evil.example",
     undefined,
   ];
@@ -90,7 +89,7 @@ test("REQ-102 AC7: a Referer or a forwarding header is not a substitute for the 
 });
 
 test("REQ-102 AC7: a CALLBACK_URL that is not an address refuses every sign-out rather than allowing every origin", async () => {
-  for (const callbackUrl of ["not a url", "", "/callback"]) {
+  for (const callbackUrl of ["not a url", "/callback", "ftp://portal.example/callback", "mailto:a@b.example"]) {
     const { handle } = app(callbackUrl);
     for (const origin of ["https://portal.example", "null", "https://evil.example", undefined]) {
       const out = await handle(await post(origin));

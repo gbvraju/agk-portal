@@ -33,6 +33,17 @@ function signedInPage(cards: readonly string[]): Response {
   return htmlPage("Portal", `${list}\n${form}`);
 }
 
+// The origin of this site, from the one address the operator sets for it (CALLBACK_URL). An address that cannot be read
+// has no origin, so no request matches it.
+function ownOrigin(callbackUrl: string): string | undefined {
+  try {
+    const url = new URL(callbackUrl);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function createApp(core: Core, options: AppOptions = {}): (request: Request) => Promise<Response> {
   const github = options.github;
   const complete = options.complete ?? (github ? (code: string) => completeSignIn(core, github, code) : async () => refusal());
@@ -40,6 +51,9 @@ export function createApp(core: Core, options: AppOptions = {}): (request: Reque
   return safely(async (request) => {
     const path = new URL(request.url).pathname;
     if (request.method === "POST" && path === "/signout") {
+      // Another site must not be able to sign a visitor out: only a request that names this site's origin is answered.
+      const origin = request.headers.get("origin");
+      if (origin === null || origin !== ownOrigin(core.settings.callbackUrl)) return notFoundPage();
       return htmlPage("Sign in", OFFER_HTML, 200, [clearCookie(SESSION_COOKIE)]);
     }
     if (request.method !== "GET") return notFoundPage();
