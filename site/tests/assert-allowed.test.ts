@@ -59,6 +59,11 @@ test("REQ-104 AC2: a style attribute or an event-handler attribute is refused, i
     "<body onload=x>",
     "<p onmouseover>x</p>",
     '<a title="x"style="y">x</a>',
+    "<p onx=y>x</p>",
+    "<p on=y>x</p>",
+    "<p a/onclick=y>x</p>",
+    '<p title="x"/onclick=y>x</p>',
+    '<p title="x"/style=y>x</p>',
   ]) refused(body);
 });
 
@@ -73,6 +78,8 @@ test("REQ-104 AC2: a javascript: address in an attribute is refused, however it 
     '<a href="java&NewLine;script:x()">x</a>',
     '<a href="&#106;avascript:x()">x</a>',
     '<a href="&#x6A;avascript&colon;x()">x</a>',
+    '<a href="&#x6A&#x61vascript:x()">x</a>',
+    '<a href="&#106&#97vascript:x()">x</a>',
     '<a href="java\tscript:x()">x</a>',
     '<a href="\u0001javascript:x()">x</a>',
     '<form action="javascript:x()"><button>x</button></form>',
