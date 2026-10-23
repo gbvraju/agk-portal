@@ -119,7 +119,7 @@ test("REQ-108 AC4: a status is a word and a colour: Done, Proven, Needs you, At 
   assert.deepEqual(kinds("Proven"), ["proven:Proven", "", "", "", "", "", "proven:Proven", ""]);
   assert.deepEqual(kinds("Needs your decision"), Array(9).fill("decide:Needs you"));
   assert.deepEqual(kinds("At risk"), Array(6).fill("risk:At risk"));
-  assert.deepEqual(kinds("Time and review"), Array(5).fill(""));
+  assert.deepEqual(kinds("Time and review"), Array(9).fill(""));
   const unknown = await card("dirty-unknown");
   assert.deepEqual(badgeProblems(unknown), []);
   assert.ok(lis(body(unknown, "Proven")).some((l) => l.includes('<span class="badge none">Not known yet</span>')));
@@ -161,7 +161,7 @@ test("REQ-108 AC6: the four parts stand in one grid in the order of the spec, an
   assert.doesNotMatch(inGrid, /Time and review/);
   const tiles = page.slice(time);
   assert.match(tiles, /<h4>Time and review<\/h4>\s*<ul class="tiles">/);
-  assert.equal((tiles.match(/<li class="tile">/g) ?? []).length, 5);
+  assert.equal((tiles.match(/<li class="tile">/g) ?? []).length, 9);
   assert.deepEqual([...page.matchAll(/<h4>(.*?)<\/h4>/g)].map((m) => m[1]), ["Delivered", "Proven", "Needs your decision", "At risk", "Time and review"]);
 });
 

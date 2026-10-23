@@ -63,7 +63,7 @@ test("REQ-105 AC2: every item of Delivered and of Time and review appears once, 
     const dataDelivered = document.sections.delivered;
     const dataCost = document.sections.cost;
     assert.equal(delivered.items.length, dataDelivered.length, `${name}: one line per item`);
-    assert.equal(cost.items.length, dataCost.length, `${name}: one line per item`);
+    assert.equal(cost.items.length, dataCost.reduce((n: number, item: Doc) => n + (item.kind === "week-totals" ? 5 : 1), 0), `${name}: one line per item, five tiles for the totals`);
     dataDelivered.forEach((item: Doc, i: number) => {
       const line = delivered.items[i] as string;
       const text = textOf(line);
@@ -72,12 +72,20 @@ test("REQ-105 AC2: every item of Delivered and of Time and review appears once, 
       if (item.kind === "pull-request-merged") assert.ok(text.includes(item.merged_on) && text.endsWith(`(#${item.number})`), `${name} #${i}: ${text}`);
       if (item.kind === "pull-requests-merged") assert.ok(text.startsWith(`${item.count} changes were merged this week.`), `${name} #${i}: ${text}`);
     });
+    let k = 0;
     dataCost.forEach((item: Doc, i: number) => {
-      const line = cost.items[i] as string;
+      if (item.kind === "week-totals") {
+        const tiles = cost.items.slice(k, k + 5).map(textOf);
+        assert.ok(tiles[0]?.startsWith(`${item.merged} change`) && tiles[1]?.includes(`${item.hours} hours`), `${name} #${i}: ${tiles.join(" | ")}`);
+        assert.deepEqual(hrefs(page.slice(page.indexOf("</ul>", page.indexOf("<h4>Time and review</h4>")))), item.links.map((l: Doc) => l.url), `${name} #${i} the link after the tiles`);
+        k += 5;
+        return;
+      }
+      const line = cost.items[k] as string;
       const text = textOf(line);
       assert.deepEqual(hrefs(line), item.links.map((l: Doc) => l.url), `${name} #${i} the links`);
       if (item.kind === "pull-request-cost") assert.ok(text.includes(`${item.hours} hours`) && text.endsWith(`(#${item.number})`), `${name} #${i}: ${text}`);
-      if (item.kind === "week-totals") assert.ok(text.includes(`${item.merged} changes merged`) && text.includes(`${item.hours} hours in total`), `${name} #${i}: ${text}`);
+      k += 1;
     });
   }
 });
@@ -102,7 +110,11 @@ test("REQ-105 AC2: the lines of the kinds fixture are the fixed phrases of SPEC-
     "A change took 49.3 hours from opening to merge and 2 review rounds. (#6)",
     "A change took 10.0 hours from opening to merge and 0 review rounds. (#7)",
     "A change took 0.0 hours from opening to merge and 0 review rounds. (#8)",
-    "This week: 4 changes merged; time from opening to merge: 107.3 hours in total; review rounds in total: 2; declared as not changing behaviour: 2; estimate: none declared this week. (the week)",
+    "4 changes merged",
+    "107.3 hours from opening to merge, in total",
+    "2 review rounds in total",
+    "2 declared as not changing behaviour",
+    "estimate: none declared this week",
   ]);
   assert.ok(!/Change number|Alpha thing\b.*Alpha/.test(page.replace(/“Alpha thing”/g, "")), "no pull request title is shown");
 });
@@ -127,7 +139,7 @@ test("REQ-105 AC7: a busy week shows the one summary line with the week link and
   assert.deepEqual(hrefs(summary[0] as string), ["https://github.com/demo-org/demo-repo/pulls?q=is%3Apr+is%3Amerged+merged%3A2026-10-05..2026-10-11"]);
   assert.ok(!delivered.some((l) => /A change was merged on/.test(textOf(l))), "no per-change line");
   const cost = (part(page, "Time and review")?.items ?? []).map(textOf);
-  assert.deepEqual(cost, ["This week: 12 changes merged; time from opening to merge: 124.3 hours in total; review rounds in total: 4; declared as not changing behaviour: 3; estimate: none declared this week. (the week)"]);
+  assert.deepEqual(cost, ["12 changes merged", "124.3 hours from opening to merge, in total", "4 review rounds in total", "3 declared as not changing behaviour", "estimate: none declared this week"]);
   assert.equal(document.sections.cost[0].busy, true);
 });
 
@@ -177,7 +189,11 @@ test("REQ-105 AC5: a value the data marks unknown is not known yet, never a numb
     "A change took 49.3 hours from opening to merge and review rounds not known yet. (#6)",
     "A change took hours not known yet from opening to merge and review rounds not known yet. (#7)",
     "A change took 0.0 hours from opening to merge and 0 review rounds. (#8)",
-    "This week: 4 changes merged; time from opening to merge: not known yet; review rounds in total: not known yet; declared as not changing behaviour: 2; estimate: 1 of 2 within range. (the week)",
+    "4 changes merged",
+    "hours from opening to merge, in total: not known yet",
+    "review rounds in total: not known yet",
+    "2 declared as not changing behaviour",
+    "estimate: 1 of 2 within range",
   ]);
   assert.ok(!/ of \d+ changes/.test(cost.join(" ")), "no count of changes that lack hours");
 });
@@ -198,7 +214,8 @@ test("REQ-105 AC5: the hours are the data's strings, shown as they are: no sum, 
     r.sections.cost[4].merged = 7;
   });
   const cost = (part(page, "Time and review")?.items ?? []).map(textOf);
-  assert.ok(cost[4]?.includes("7 changes merged; time from opening to merge: 999.9 hours in total"), cost[4]);
+  assert.equal(cost[4], "7 changes merged");
+  assert.equal(cost[5], "999.9 hours from opening to merge, in total");
   assert.ok(cost[0]?.startsWith("A change took -1.5 hours from"), cost[0]);
 });
 
@@ -211,7 +228,8 @@ test("REQ-105 AC2: a count of one uses the singular", async () => {
   });
   const cost = (part(page, "Time and review")?.items ?? []).map(textOf);
   assert.ok(cost[1]?.includes("and 1 review round. (#6)"), cost[1]);
-  assert.ok(cost[4]?.includes("This week: 1 change merged;") && cost[4].includes("review rounds in total: 1;"), cost[4]);
+  assert.equal(cost[4], "1 change merged");
+  assert.equal(cost[6], "1 review round in total");
   const delivered = (part(page, "Delivered")?.items ?? []).map(textOf);
   assert.ok(delivered[0]?.includes("1 acceptance criterion (AC1)"));
   assert.equal(delivered[1], "1 change was merged this week.");

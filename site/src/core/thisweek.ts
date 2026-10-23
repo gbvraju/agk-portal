@@ -60,14 +60,6 @@ function costLine(item: ReportItem): string {
   switch (item.kind) {
     case "pull-request-cost":
       return `A change took ${hours(item["hours"], "from opening to merge")} and ${rounds(item["fix_verdicts"])}. ${reference(item, `#${item["number"]}`)}`;
-    case "week-totals": {
-      const total = item["hours"] === "unknown" ? NOT_KNOWN : `${escapeText(String(item["hours"]))} hours in total`;
-      const roundsTotal = item["fix_verdicts"] === "unknown" ? NOT_KNOWN : String(item["fix_verdicts"]);
-      const estimate = item["estimate"];
-      const range = typeof estimate === "object" && estimate !== null ? `${(estimate as Record<string, number>)["within"]} of ${(estimate as Record<string, number>)["counted"]} within range` : "none declared this week";
-      const merged = item["merged"] as number;
-      return `This week: ${merged} ${merged === 1 ? "change" : "changes"} merged; time from opening to merge: ${total}; review rounds in total: ${roundsTotal}; declared as not changing behaviour: ${item["behaviour_unchanged"]}; estimate: ${range}.${item.links.length === 0 ? "" : ` ${reference(item, "the week")}`}`;
-    }
     default:
       return unreadable(item);
   }
@@ -215,11 +207,34 @@ function needsPart(groups: ReportGroup[]): string {
   return `<div class="part">\n<h4>Needs your decision</h4>\n${shown.join("\n")}\n</div>`;
 }
 
-// One part: its heading and its lines, or the empty phrase. The Time and review part is the tiles.
-function part(title: string, items: ReportItem[], line: (item: ReportItem) => string, status: (item: ReportItem) => Status | undefined, tiles = false): string {
-  const tag = tiles ? ' class="tile"' : "";
-  const body = items.length === 0 ? "<p>Nothing this week.</p>" : `<ul${tiles ? ' class="tiles"' : ""}>\n${items.map((i) => `<li${tag}>${badge(status(i))}${line(i)}</li>`).join("\n")}\n</ul>`;
-  return `<div class="part${tiles ? " time" : ""}">\n<h4>${title}</h4>\n${body}\n</div>`;
+// The totals item as its five tiles, each a fixed phrase over one field of the item (SPEC-0005 rule 10, Amendment 8). The
+// numbers are placed as the data holds them; an unknown value reads "not known yet" in its tile.
+function totalsTiles(item: ReportItem): string[] {
+  const merged = item["merged"] as number;
+  const rounds = item["fix_verdicts"];
+  const estimate = item["estimate"];
+  const range = typeof estimate === "object" && estimate !== null ? `${(estimate as Record<string, number>)["within"]} of ${(estimate as Record<string, number>)["counted"]} within range` : "none declared this week";
+  return [
+    `${plural(merged, "change", "changes")} merged`,
+    item["hours"] === "unknown" ? `hours from opening to merge, in total: ${NOT_KNOWN}` : `${escapeText(String(item["hours"]))} hours from opening to merge, in total`,
+    typeof rounds === "number" ? `${plural(rounds, "review round", "review rounds")} in total` : `review rounds in total: ${NOT_KNOWN}`,
+    `${item["behaviour_unchanged"]} declared as not changing behaviour`,
+    `estimate: ${range}`,
+  ];
+}
+
+// The Time and review part: one tile for each per-change line, five for the totals, and the link of the week once after them.
+function timePart(items: ReportItem[]): string {
+  if (items.length === 0) return `<div class="part time">\n<h4>Time and review</h4>\n<p>Nothing this week.</p>\n</div>`;
+  const tiles = items.flatMap((item) => (item.kind === "week-totals" ? totalsTiles(item) : [costLine(item)]));
+  const week = items.filter((item) => item.kind === "week-totals" && item.links.length > 0).map((item) => `\n<p class="week">${reference(item, "the week")}</p>`);
+  return `<div class="part time">\n<h4>Time and review</h4>\n<ul class="tiles">\n${tiles.map((t) => `<li class="tile">${t}</li>`).join("\n")}\n</ul>${week.join("")}\n</div>`;
+}
+
+// One part: its heading and its lines, or the empty phrase.
+function part(title: string, items: ReportItem[], line: (item: ReportItem) => string, status: (item: ReportItem) => Status | undefined): string {
+  const body = items.length === 0 ? "<p>Nothing this week.</p>" : `<ul>\n${items.map((i) => `<li>${badge(status(i))}${line(i)}</li>`).join("\n")}\n</ul>`;
+  return `<div class="part">\n<h4>${title}</h4>\n${body}\n</div>`;
 }
 
 export function thisWeekSection(report: ReportDocument): string {
@@ -239,6 +254,6 @@ export function thisWeekSection(report: ReportDocument): string {
     needsPart(report.sections.needs_you),
     part("At risk", report.sections.at_risk, atRiskLine, (i) => statusOf(i, "risk")),
   ];
-  lines.push(`<div class="parts">\n${four.join("\n")}\n</div>`, part("Time and review", report.sections.cost, costLine, () => undefined, true));
+  lines.push(`<div class="parts">\n${four.join("\n")}\n</div>`, timePart(report.sections.cost));
   return `<section>\n<h3>This week</h3>\n${lines.join("\n")}\n</section>`;
 }
