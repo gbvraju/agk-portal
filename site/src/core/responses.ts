@@ -117,7 +117,7 @@ function document(title: string, bodyHtml: string): string {
   const html =
     '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
-    `<title>${escapeText(title)}</title>\n<link rel="stylesheet" href="/style.css">\n</head>\n<body>\n${bodyHtml}\n</body>\n</html>\n`;
+    `<title>${escapeText(title)}</title>\n<link rel="stylesheet" href="/style.css">\n</head>\n<body>\n<header class="top"><span class="logo">AGK</span></header>\n<main>\n${bodyHtml}\n</main>\n</body>\n</html>\n`;
   assertAllowed(html);
   return html;
 }
@@ -126,13 +126,60 @@ export function htmlPage(title: string, bodyHtml: string, status = 200, cookies:
   return respond(document(title, bodyHtml), { status, headers: { "Content-Type": "text/html; charset=utf-8" } }, true, cookies);
 }
 
-const STYLE = `*,*::before,*::after{box-sizing:border-box}
-body{margin:0 auto;padding:16px;max-width:40rem;font:16px/1.5 system-ui,sans-serif;color:#1a1a1a;background:#fff}
-h1,h2,h3{line-height:1.25}
-a{color:#0b57d0}
-details{margin:.5rem 0}
-p,li,summary{overflow-wrap:anywhere}
-@media (prefers-color-scheme:dark){body{color:#eee;background:#111}a{color:#8ab4f8}}
+// The one stylesheet (SPEC-0008). Every colour is a named custom property in the two theme blocks below: the light set under
+// :root and the dark set under prefers-color-scheme. No other rule holds a colour value; they use var(--name).
+const STYLE = `:root{
+  --bg:#F5F6F8;--surface:#FFFFFF;--surface-2:#F0F2F5;--border:#E1E4EA;--text:#141820;--muted:#566070;
+  --accent:#2B55C9;--accent-ink:#FFFFFF;
+  --done-bg:#E3F3E9;--done-fg:#1B6138;--proven-bg:#E6ECFB;--proven-fg:#22439E;
+  --decide-bg:#FFF1DC;--decide-fg:#7F4500;--risk-bg:#FCE8E5;--risk-fg:#9C271C;--none-bg:#ECEEF1;--none-fg:#4A5361;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0E1116;--surface:#161A21;--surface-2:#1D222B;--border:#2A303B;--text:#E7EAF0;--muted:#A0A9B7;
+  --accent:#8EA9FF;--accent-ink:#0E1116;
+  --done-bg:#13301F;--done-fg:#8BD9AA;--proven-bg:#18234A;--proven-fg:#AFC2FF;
+  --decide-bg:#3A2710;--decide-fg:#FFC27A;--risk-bg:#3E1714;--risk-fg:#FF9E94;--none-bg:#232833;--none-fg:#B8C0CC;
+}}
+html{color-scheme:light dark}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);background:var(--bg)}
+main,header.top{max-width:72rem;margin:0 auto;padding:0 16px}
+header.top{padding-top:16px;padding-bottom:8px}
+main{padding-bottom:32px}
+.logo{display:inline-block;padding:4px 12px;border-radius:8px;font-weight:700;letter-spacing:.08em;background:var(--accent);color:var(--accent-ink)}
+h1{margin:16px 0;font-size:1.5rem;line-height:1.25}
+h2{margin:0 0 8px;font-size:1.2rem;line-height:1.3}
+h3,h4,h5{line-height:1.3}
+h3{margin:16px 0 8px;font-size:1.05rem}
+h4{margin:0 0 8px;font-size:1rem}
+h5{margin:12px 0 4px;font-size:.95rem;color:var(--muted)}
+p,li,summary,h2,h4,h5{overflow-wrap:anywhere}
+a{color:var(--accent)}
+a{display:inline-block;min-height:44px;padding:10px 0;margin:-10px 0;line-height:1.5}
+button,summary{min-height:44px;line-height:44px}
+button{display:inline-block}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button{padding:0 20px;border:1px solid var(--accent);border-radius:8px;font:inherit;font-weight:600;color:var(--accent-ink);background:var(--accent);cursor:pointer}
+details{margin:8px 0}
+summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}
+.card{margin:16px 0;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.parts{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin:16px 0}
+.part{padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)}
+.part ul,.tiles{margin:0;padding:0;list-style:none}
+.part li{padding:8px 0;border-top:1px solid var(--border)}
+.part li:first-child{border-top:0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:12px}
+.tile{padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)}
+.part.time{margin:16px 0;padding:0;border:0;background:none}
+.badge{display:inline-block;margin-right:8px;padding:0 10px;border-radius:999px;font-size:.8rem;font-weight:700;line-height:1.7;white-space:nowrap}
+.badge.done{background:var(--done-bg);color:var(--done-fg)}
+.badge.proven{background:var(--proven-bg);color:var(--proven-fg)}
+.badge.decide{background:var(--decide-bg);color:var(--decide-fg)}
+.badge.risk{background:var(--risk-bg);color:var(--risk-fg)}
+.badge.none{background:var(--none-bg);color:var(--none-fg)}
+@media (min-width:900px){
+  .parts{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 `;
 
 export function stylesheet(): Response {

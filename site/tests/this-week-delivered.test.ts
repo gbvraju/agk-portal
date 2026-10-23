@@ -40,7 +40,7 @@ function part(page: string, title: string): { items: string[]; empty: boolean } 
   const rest = page.slice(at + `<h4>${title}</h4>`.length);
   const end = rest.search(/<h4>|<\/section>/);
   const body = end < 0 ? rest : rest.slice(0, end);
-  const items = [...body.matchAll(/<li>(.*?)<\/li>/gs)].map((m) => m[1] as string);
+  const items = [...body.matchAll(/<li[^>]*>(?:<span class="badge [a-z]+">[^<]*<\/span> )?(.*?)<\/li>/gs)].map((m) => m[1] as string);
   return { items, empty: /<p>Nothing this week\.<\/p>/.test(body) && items.length === 0 };
 }
 const hrefs = (inner: string): string[] => [...inner.matchAll(/href="([^"]*)"/g)].map((m) => unescape(m[1] as string));

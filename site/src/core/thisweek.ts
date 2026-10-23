@@ -193,20 +193,33 @@ function atRiskLine(item: ReportItem): string {
   }
 }
 
+// The status of an item as a badge: always a word, with its colour class (SPEC-0008 rule 4). An item with no status of
+// the five words has none.
+type Status = "done" | "proven" | "decide" | "risk" | "none";
+const STATUS_WORDS: Record<Status, string> = { done: "Done", proven: "Proven", decide: "Needs you", risk: "At risk", none: "Not known yet" };
+const badge = (status: Status | undefined): string => (status === undefined ? "" : `<span class="badge ${status}">${STATUS_WORDS[status]}</span> `);
+const statusOf = (item: ReportItem, kind: Status, except: readonly string[] = []): Status | undefined => (item.kind === "unknown" ? "none" : except.includes(item.kind) ? undefined : kind);
+
+// A Needs your decision group over this many items is folded behind its heading (SPEC-0008 rule 8).
+const FOLD_OVER = 5;
+
 function needsPart(groups: ReportGroup[]): string {
-  if (groups.length === 0) return `<h4>Needs your decision</h4>\n<p>Nothing this week.</p>`;
+  if (groups.length === 0) return `<div class="part">\n<h4>Needs your decision</h4>\n<p>Nothing this week.</p>\n</div>`;
   const shown = groups.map((g) => {
     const [one, many] = HEADINGS[g.group] as [string, string];
     const heading = g.count === "unknown" ? `${many} (${NOT_KNOWN})` : `${g.count === 1 ? one : many} (${g.count})`;
-    const items = g.items.length === 0 ? "" : `\n<ul>\n${g.items.map((i) => `<li>${needsLine(i)}</li>`).join("\n")}\n</ul>`;
-    return `<h5>${heading}</h5>${items}`;
+    const list = `<ul>\n${g.items.map((i) => `<li>${badge(statusOf(i, "decide"))}${needsLine(i)}</li>`).join("\n")}\n</ul>`;
+    if (g.items.length > FOLD_OVER) return `<details class="fold"><summary>${heading}</summary>\n${list}\n</details>`;
+    return `<h5>${heading}</h5>${g.items.length === 0 ? "" : `\n${list}`}`;
   });
-  return `<h4>Needs your decision</h4>\n${shown.join("\n")}`;
+  return `<div class="part">\n<h4>Needs your decision</h4>\n${shown.join("\n")}\n</div>`;
 }
 
-function part(title: string, items: ReportItem[], line: (item: ReportItem) => string): string {
-  const body = items.length === 0 ? "<p>Nothing this week.</p>" : `<ul>\n${items.map((i) => `<li>${line(i)}</li>`).join("\n")}\n</ul>`;
-  return `<h4>${title}</h4>\n${body}`;
+// One part: its heading and its lines, or the empty phrase. The Time and review part is the tiles.
+function part(title: string, items: ReportItem[], line: (item: ReportItem) => string, status: (item: ReportItem) => Status | undefined, tiles = false): string {
+  const tag = tiles ? ' class="tile"' : "";
+  const body = items.length === 0 ? "<p>Nothing this week.</p>" : `<ul${tiles ? ' class="tiles"' : ""}>\n${items.map((i) => `<li${tag}>${badge(status(i))}${line(i)}</li>`).join("\n")}\n</ul>`;
+  return `<div class="part${tiles ? " time" : ""}">\n<h4>${title}</h4>\n${body}\n</div>`;
 }
 
 export function thisWeekSection(report: ReportDocument): string {
@@ -220,6 +233,12 @@ export function thisWeekSection(report: ReportDocument): string {
       lines.push(`<p>Facts commit: ${address === undefined ? text : `<a href="${escapeText(address)}">${text}</a>`}</p>`);
     }
   }
-  lines.push(part("Delivered", report.sections.delivered, deliveredLine), part("Proven", report.sections.proven, provenLine), needsPart(report.sections.needs_you), part("At risk", report.sections.at_risk, atRiskLine), part("Time and review", report.sections.cost, costLine));
+  const four = [
+    part("Delivered", report.sections.delivered, deliveredLine, (i) => statusOf(i, "done")),
+    part("Proven", report.sections.proven, provenLine, (i) => statusOf(i, "proven", ["requirement-not-proven", "planned-not-counted"])),
+    needsPart(report.sections.needs_you),
+    part("At risk", report.sections.at_risk, atRiskLine, (i) => statusOf(i, "risk")),
+  ];
+  lines.push(`<div class="parts">\n${four.join("\n")}\n</div>`, part("Time and review", report.sections.cost, costLine, () => undefined, true));
   return `<section>\n<h3>This week</h3>\n${lines.join("\n")}\n</section>`;
 }

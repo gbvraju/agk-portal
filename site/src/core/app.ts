@@ -30,7 +30,7 @@ async function readSession(request: Request, core: Core): Promise<Reading> {
 function signedInPage(cards: readonly string[]): Response {
   const list = cards.length > 0 ? cards.join("\n") : `<p>${EMPTY_LIST_PHRASE}</p>`;
   const form = '<form method="post" action="/signout"><button type="submit">Sign out</button></form>';
-  return htmlPage("Portal", `${list}\n${form}`);
+  return htmlPage("Your projects", `<h1>Your projects</h1>\n${list}\n${form}`);
 }
 
 // The origin of this site, from the one address the operator sets for it (CALLBACK_URL). An address that cannot be read

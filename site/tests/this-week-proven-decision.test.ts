@@ -42,7 +42,7 @@ function body(page: string, title: string): string | undefined {
   const end = rest.search(/<h4>|<\/section>/);
   return end < 0 ? rest : rest.slice(0, end);
 }
-const lis = (b: string): string[] => [...b.matchAll(/<li>(.*?)<\/li>/gs)].map((m) => m[1] as string);
+const lis = (b: string): string[] => [...b.matchAll(/<li[^>]*>(?:<span class="badge [a-z]+">[^<]*<\/span> )?(.*?)<\/li>/gs)].map((m) => m[1] as string);
 const empty = (b: string | undefined): boolean => b !== undefined && /<p>Nothing this week\.<\/p>/.test(b) && lis(b).length === 0;
 // The groups of Needs your decision: heading text and the lines under it.
 function groups(page: string): { heading: string; lines: string[] }[] {
