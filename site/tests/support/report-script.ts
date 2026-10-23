@@ -17,9 +17,10 @@ export interface Written {
 
 const cache = new Map<string, Written>();
 
-// `mutate` changes a copy of the fixture's facts before the script runs (a day, a repository, a flag); `tag` names that
-// change, because a result is kept per fixture and tag.
-export function writeReport(fixture: string, mutate?: (facts: Record<string, unknown>) => void, tag = ""): Written {
+// What the script writes, as it writes it: the report of the installed kit (from kit 0.43.0 schema 2, with hours_unknown on
+// the totals). `mutate` changes a copy of the fixture's facts before the script runs (a day, a repository, a flag); `tag`
+// names that change, because a result is kept per fixture and tag.
+export function writeReportKit(fixture: string, mutate?: (facts: Record<string, unknown>) => void, tag = ""): Written {
   const key = `${fixture}:${tag}`;
   const cached = cache.get(key);
   if (cached) return cached;
@@ -39,4 +40,14 @@ export function writeReport(fixture: string, mutate?: (facts: Record<string, unk
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+// The same report in its schema 1 form: the number 1 and no hours_unknown. The tests of schema 1 (the reader's first
+// list, the five tiles) take their data from here; the kit's schema 2 goldens and writeReportKit cover schema 2.
+export function writeReport(fixture: string, mutate?: (facts: Record<string, unknown>) => void, tag = ""): Written {
+  const kit = writeReportKit(fixture, mutate, tag);
+  const document = JSON.parse(kit.report);
+  document.schema = 1;
+  for (const item of document.sections.cost) delete item.hours_unknown;
+  return { facts: kit.facts, report: JSON.stringify(document, null, 2) + "\n", document };
 }
