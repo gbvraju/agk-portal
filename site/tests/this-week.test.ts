@@ -307,10 +307,10 @@ test("REQ-105 AC8: facts that cannot be read give the card the facts reason and 
   assert.ok(html.includes("Not known yet: the schema is not 1.") && !html.includes("Week 2026-W41:"));
 });
 
-test("REQ-105 AC1: until the parts are built no part is shown, not even as empty (only At risk is not built)", async () => {
-  const { html } = await cardOf("quiet");
-  for (const part of ["At risk"]) {
-    assert.ok(!html.includes(part), `${part} is not shown yet`);
+test("REQ-105 AC1: all five parts are built, and each is shown, empty or not, as the data says", async () => {
+  const { html } = await cardOf("empty");
+  for (const part of ["Delivered", "Proven", "Needs your decision", "At risk", "Time and review"]) {
+    assert.ok(html.includes(`<h4>${part}</h4>`), `${part} is shown`);
   }
 });
 

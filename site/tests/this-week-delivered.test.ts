@@ -47,12 +47,11 @@ const hrefs = (inner: string): string[] => [...inner.matchAll(/href="([^"]*)"/g)
 
 const FIXTURES = ["kinds", "busy", "quiet", "dirty-unknown", "empty"];
 
-test("REQ-105 AC1: Delivered and Time and review follow the opening and the notices, in that order, and At risk is not shown yet", async () => {
+test("REQ-105 AC1: Delivered and Time and review follow the opening and the notices, in that order, with the other parts between them", async () => {
   const { html: page } = await html("kinds");
   const at = (s: string): number => page.indexOf(s);
   assert.ok(at("Week 2026-W41:") < at("<h4>Delivered</h4>") && at("<h4>Delivered</h4>") < at("<h4>Time and review</h4>"));
-  assert.ok(!page.includes("<h4>At risk</h4>"), "At risk is not built yet");
-  assert.equal((page.match(/<h4>/g) ?? []).length, 4);
+  assert.equal((page.match(/<h4>/g) ?? []).length, 5);
 });
 
 test("REQ-105 AC2: every item of Delivered and of Time and review appears once, in the data's order, with its identifier, number, date, hours and link, for each fixture", async () => {

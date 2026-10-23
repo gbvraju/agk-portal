@@ -153,6 +153,46 @@ function needsLine(item: ReportItem): string {
   }
 }
 
+// A pull request of an entry: its number linked to the item's address for that pull request, else the number as text.
+function change(item: ReportItem, n: unknown): string {
+  const url = item.links.map((l) => githubAddress(l.url)).find((u) => u !== undefined && u.endsWith(`/pull/${n}`));
+  const text = `#${n}`;
+  return url === undefined ? text : `<a href="${escapeText(url)}">${text}</a>`;
+}
+const joined = (parts: string[]): string => (parts.length < 2 ? parts.join("") : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`);
+
+// One pull request is a sentence of its own with its reference; two or more are one sentence that names every one.
+function groupedLine(item: ReportItem, one: (e: Record<string, unknown>) => string, many: string, label: (e: Record<string, unknown>) => string): string {
+  const entries = item["entries"] as Record<string, unknown>[];
+  const [first] = entries;
+  if (entries.length === 1 && first !== undefined) return `${one(first)} (${change(item, first["number"])})`;
+  return `Changes ${joined(entries.map((e) => `${change(item, e["number"])}${label(e)}`))} ${many}`;
+}
+
+function atRiskLine(item: ReportItem): string {
+  switch (item.kind) {
+    case "residual-overdue":
+      return `Overdue since ${escapeText(String(item["due"]))} (${plural(item["days"] as number, "day", "days")}).${item.links.length === 0 ? "" : ` ${reference(item, "the item")}`}`;
+    case "pull-requests-open-long":
+      return groupedLine(item, (e) => `A change has been open for ${plural(e["days"] as number, "day", "days")}.`, "have been open.", (e) => ` (${plural(e["days"] as number, "day", "days")})`);
+    case "pull-requests-sent-back":
+      return groupedLine(item, (e) => `A change was sent back ${plural(e["times"] as number, "time", "times")}.`, "were sent back.", (e) => ` (${plural(e["times"] as number, "time", "times")})`);
+    case "pull-requests-merged-no-verdict":
+      return groupedLine(item, () => "A change was merged without a review.", "were merged without a review.", () => "");
+    case "pull-requests-merged-not-cleared":
+      return groupedLine(item, () => "A change was merged before its final review.", "were merged before their final review.", () => "");
+    case "drift-audit": {
+      const total = item["total"];
+      const found = typeof total === "number" ? `${plural(total, "issue", "issues")} found.` : `the number of issues found is ${NOT_KNOWN}.`;
+      const open = item["open_issue"];
+      const tail = open === "none" ? " No issue is open for them." : open === "unknown" ? " Issues not known yet." : item.links.length === 0 ? "" : ` ${reference(item, "the issue")}`;
+      return `Housekeeping checks: ${found}${tail}`;
+    }
+    default:
+      return unreadable(item);
+  }
+}
+
 function needsPart(groups: ReportGroup[]): string {
   if (groups.length === 0) return `<h4>Needs your decision</h4>\n<p>Nothing this week.</p>`;
   const shown = groups.map((g) => {
@@ -180,6 +220,6 @@ export function thisWeekSection(report: ReportDocument): string {
       lines.push(`<p>Facts commit: ${address === undefined ? text : `<a href="${escapeText(address)}">${text}</a>`}</p>`);
     }
   }
-  lines.push(part("Delivered", report.sections.delivered, deliveredLine), part("Proven", report.sections.proven, provenLine), needsPart(report.sections.needs_you), part("Time and review", report.sections.cost, costLine));
+  lines.push(part("Delivered", report.sections.delivered, deliveredLine), part("Proven", report.sections.proven, provenLine), needsPart(report.sections.needs_you), part("At risk", report.sections.at_risk, atRiskLine), part("Time and review", report.sections.cost, costLine));
   return `<section>\n<h3>This week</h3>\n${lines.join("\n")}\n</section>`;
 }
