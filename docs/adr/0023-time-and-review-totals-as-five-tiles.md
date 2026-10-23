@@ -1,6 +1,6 @@
 # ADR-0023: The totals of Time and review are shown as five tiles
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-23
 - Deciders: maintainers
 - Related: ADR-0019, ADR-0022
