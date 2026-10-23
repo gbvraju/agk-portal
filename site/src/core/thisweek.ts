@@ -207,7 +207,7 @@ function needsPart(groups: ReportGroup[]): string {
   return `<div class="part">\n<h4>Needs your decision</h4>\n${shown.join("\n")}\n</div>`;
 }
 
-// The totals item as its five tiles, each a fixed phrase over one field of the item (SPEC-0005 rule 10, Amendment 8). The
+// The totals item as its five tiles (six for schema 2, which carries the count of changes without known hours), each a fixed phrase over one field of the item (SPEC-0005 rule 10, Amendment 8). The
 // numbers are placed as the data holds them; an unknown value reads "not known yet" in its tile.
 function totalsTiles(item: ReportItem): string[] {
   const merged = item["merged"] as number;
@@ -217,6 +217,7 @@ function totalsTiles(item: ReportItem): string[] {
   return [
     `${plural(merged, "change", "changes")} merged`,
     item["hours"] === "unknown" ? `hours from opening to merge, in total: ${NOT_KNOWN}` : `${escapeText(String(item["hours"]))} hours from opening to merge, in total`,
+    ...(typeof item["hours_unknown"] === "number" ? [`${plural(item["hours_unknown"], "change", "changes")} without known hours`] : []),
     typeof rounds === "number" ? `${plural(rounds, "review round", "review rounds")} in total` : `review rounds in total: ${NOT_KNOWN}`,
     `${item["behaviour_unchanged"]} declared as not changing behaviour`,
     `estimate: ${range}`,

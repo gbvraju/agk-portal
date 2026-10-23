@@ -27,3 +27,15 @@ Date: 2026-10-23 (from `date -u`). Approved specs are changed only through a pro
 **New text.**
 
 > | Time and review | five tiles in this order, each a fixed phrase over one field of the totals item: "{merged} changes merged" ("1 change merged"); "{hours} hours from opening to merge, in total" ("hours from opening to merge, in total: not known yet"); "{fix_verdicts} review rounds in total" ("1 review round in total"; "review rounds in total: not known yet"); "{behaviour_unchanged} declared as not changing behaviour"; "estimate: none declared this week" / "estimate: {N} of {M} within range"; and the link "(the week)" once after the tiles | the totals line (Amendment 8) |
+
+## Amendment 9 — rules 10 and 13 and the intro, the Tests and the Residual: report.json schema 2 and the sixth tile
+
+**Reason.** agk v0.43.0 (agk SPEC-0024, REQ-031) raises the `schema` of `report.json` to 2 for every report: the item of kind `week-totals` gains `hours_unknown`, an integer from 0, always present, the number of the week's merged changes whose hours are not known (also in a busy week). The report of Monday 2026-10-26 is schema 2; the artifacts before it are schema 1. SPEC-0005 fixes the schema number in its intro, rule 13, a Tests line and a Residual bullet, and the totals row of rule 10 (Amendment 8) has no tile for the count. SPEC-0001 rule 4 is about `facts.json`, whose schema stays 1, and is not changed. The page places the field and computes nothing.
+
+**Old text and new text.** (the words that change; the rest of each paragraph is as it is)
+
+1. The introduction: "(agk SPEC-0022, kit 0.39.0, schema 1)" becomes "(agk SPEC-0022, kit 0.39.0, schema 1; schema 2 from kit 0.43.0, agk SPEC-0024)".
+2. Rule 13: "`schema` the number 1;" becomes "`schema` the number 1 or 2 (schema 2, agk SPEC-0024, adds `hours_unknown`, an integer from 0 and always present, to the item of kind `week-totals` and to nothing else; each schema has its own closed list);" and "whose schema is not 1, or that has an extra or missing key, kind or field" becomes "whose schema is not 1 or 2, or that has an extra or missing key, kind or field for its schema (schema 2 without `hours_unknown`, schema 1 with it)".
+3. Rule 10, the totals row (Amendment 8): after the hours phrase it gains "for schema 2 only, a sixth tile after the hours tile, "{hours_unknown} changes without known hours" ("1 change without known hours"; 0 is shown, because 0 is a known value);", and "five tiles in this order" becomes "five tiles in this order (six for schema 2)".
+4. Tests: "a schema other than 1 show no This week" becomes "a schema other than 1 or 2 show no This week", and a line for rules 10 and 13 is added (the sixth tile for schema 2, five tiles for schema 1, the field required for schema 2 and refused for schema 1; REQ-105 AC5 and AC8).
+5. Residual: "the page is tied to `report.json` schema 1 (agk SPEC-0022); a schema change fails the document check and the spec is then amended;" becomes "the page reads `report.json` schemas 1 and 2 (agk SPEC-0022 and SPEC-0024); another schema number fails the document check and the spec is then amended;".
