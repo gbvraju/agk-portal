@@ -65,7 +65,7 @@ test("REQ-105 AC2: the link of the week stays once, after the tiles, and the til
   const { tiles, after } = time(page);
   assert.deepEqual(tiles.slice(4).flatMap(hrefs), []);
   assert.match(after, /<p class="week">\(<a href="[^"]+">the week<\/a>\)<\/p>/);
-  assert.deepEqual(hrefs(after), [WEEK]);
+  assert.deepEqual(hrefs(after), [writeReport("kinds").document.sections.cost[4].links[0].url]);
   assert.match(textOf(after), /^\(the week\)$/);
   const bare = await html("kinds", (r) => {
     r.sections.cost[4].links = [];

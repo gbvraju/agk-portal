@@ -15,3 +15,15 @@ Date: 2026-10-23 (from `date -u`). Approved specs are changed only through a pro
 > | Any | "Your projects" (the title and the heading of the signed-in page) | the page title (SPEC-0008 rule 8) |
 > | Any | "Week {label}: not known yet: {reason}." (a card without This week: no report, an unreadable report or an unknown repository; the line "Facts read for {week}." is not shown) | the card without This week (SPEC-0008 rule 8) |
 > | Any | the status words of a badge, always with their colour: "Done", "Proven", "Needs you", "At risk", "Not known yet" | the status badge (SPEC-0008 rule 4) |
+
+## Amendment 8 — rule 10, the totals line of Time and review as five tiles
+
+**Reason.** The approved mockup shows one tile per number of the week's totals; the page showed the totals as one sentence (residual of 2026-10-23, `docs/runs/residuals.md`). The totals item of `report.json` (kind `week-totals`) already holds the five numbers as fields (`merged`, `hours`, `fix_verdicts`, `behaviour_unchanged`, `estimate`), so each tile places one field and the page computes nothing. The schema stays 1; a field for hours not known (`hours_unknown`) is a separate pull request after the kit's v0.43.0. The per-change cost lines (kind `pull-request-cost`) are unchanged.
+
+**Old text.** The totals row of rule 10:
+
+    | Time and review | "This week: {n} changes merged; time from opening to merge: {h} hours in total; review rounds in total: {f}; declared as not changing behaviour: {u}; estimate: {N} of {M} within range." / "…estimate: none declared this week." | the totals line |
+
+**New text.**
+
+> | Time and review | five tiles in this order, each a fixed phrase over one field of the totals item: "{merged} changes merged" ("1 change merged"); "{hours} hours from opening to merge, in total" ("hours from opening to merge, in total: not known yet"); "{fix_verdicts} review rounds in total" ("1 review round in total"; "review rounds in total: not known yet"); "{behaviour_unchanged} declared as not changing behaviour"; "estimate: none declared this week" / "estimate: {N} of {M} within range"; and the link "(the week)" once after the tiles | the totals line (Amendment 8) |
