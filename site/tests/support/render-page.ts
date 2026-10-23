@@ -1,6 +1,6 @@
 // Renders the signed-in page of the fixture reports to a directory (index.html and style.css), for the screenshots of the
 // build pull request. Not a test; run with: npx tsx tests/support/render-page.ts OUTDIR [FIXTURE...]
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { SESSION_COOKIE, createApp, createCore, createGithubClient, factsCard, readFacts, sealSession, stylesheet, type Config, type ConfigName } from "../../src/core/index.ts";
 import { writeReport } from "./report-script.ts";
@@ -11,8 +11,17 @@ const START = 1_800_000_000_000;
 const SIGNED = "https://blob.example.net/signed/archive?sig=SIGNED";
 const out = resolve(process.argv[2] ?? "render-out");
 
+// A fixture named schema2:NAME is the kit's v0.43.0 golden report.json (schema 2) with the facts it was made from.
+function load(fixture: string): { facts: string; document: any } {
+  if (!fixture.startsWith("schema2:")) return writeReport(fixture);
+  const name = fixture.slice("schema2:".length);
+  const dir = resolve(import.meta.dirname, "..", "fixtures");
+  const facts = readFileSync(resolve(dir, name === "facts-ok" ? "report-schema-2/facts-ok.facts.json" : `report/${name}.facts.json`), "utf8");
+  return { facts, document: JSON.parse(readFileSync(resolve(dir, `report-schema-2/${name}.report.json`), "utf8")) };
+}
+
 async function card(name: string, fixture: string, change?: (report: any) => void): Promise<string> {
-  const written = writeReport(fixture);
+  const written = load(fixture);
   const doc = JSON.parse(JSON.stringify(written.document));
   change?.(doc);
   const artifacts = { total_count: 1, artifacts: [{ id: 777, name: `agk-facts-${doc.week}`, expired: false, created_at: "2026-10-14T08:00:00Z", expires_at: "2027-03-01T00:00:00Z" }] };
@@ -31,7 +40,7 @@ const config: Config = { get: (n) => values[n] };
 // The fixtures to render come after the directory: one card for each (default: the three of the first screenshots).
 const names = process.argv.slice(3);
 const cards = names.length > 0
-  ? await Promise.all(names.map((fixture) => card(`demo-org/${fixture}-week`, fixture)))
+  ? await Promise.all(names.map((fixture) => card(`demo-org/${fixture.replace("schema2:", "")}-week`, fixture)))
   : [
       await card("demo-org/busy-week", "busy", (r) => {
         r.sections.needs_you[2].items = Array.from({ length: 7 }, (_, i) => ({ kind: "question", id: `Q-X-${i + 1}`, asked_in: "docs/a.md", links: [] }));

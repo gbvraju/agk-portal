@@ -152,5 +152,5 @@ export function parseReport(text: string): ReportDocument | undefined {
   }
   const schema = isObject(value) ? value["schema"] : undefined;
   const check = typeof schema === "number" ? documents[schema] : undefined;
-  return check !== undefined && Object.hasOwn(documents, schema as number) && check(value) ? (value as ReportDocument) : undefined;
+  return check !== undefined && check(value) ? (value as ReportDocument) : undefined;
 }
