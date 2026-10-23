@@ -18,7 +18,7 @@ export interface ReportGroup {
   items: ReportItem[];
 }
 export interface ReportDocument {
-  schema: 1;
+  schema: 1 | 2;
   week: string;
   opening: { first: string; last: string; as_of: string };
   sections: { delivered: ReportItem[]; proven: ReportItem[]; needs_you: ReportGroup[]; at_risk: ReportItem[]; cost: ReportItem[] };
@@ -103,11 +103,15 @@ const atRisk = kinds({
   "drift-audit": { total: intOrUnknown, counts: isObject, open_issue: either(int, one("none", "unknown")) },
   ...UNKNOWN,
 });
-const cost = kinds({
-  "pull-request-cost": { number: int, title: str, hours, fix_verdicts: intOrUnknown },
-  "week-totals": { merged: int, hours, fix_verdicts: intOrUnknown, behaviour_unchanged: int, estimate: either(shape({ within: int, counted: int }), one("none-declared")), busy: bool },
-  ...UNKNOWN,
-});
+// The cost list of each schema. Schema 2 (agk SPEC-0024, kit 0.43.0) adds hours_unknown to the week-totals item: an integer
+// from 0, always present.
+const count: Check = (v) => int(v) && (v as number) >= 0;
+const costOf = (extra: Record<string, Check>): Check =>
+  kinds({
+    "pull-request-cost": { number: int, title: str, hours, fix_verdicts: intOrUnknown },
+    "week-totals": { merged: int, hours, ...extra, fix_verdicts: intOrUnknown, behaviour_unchanged: int, estimate: either(shape({ within: int, counted: int }), one("none-declared")), busy: bool },
+    ...UNKNOWN,
+  });
 const issueState = one("found", "none-found", "unknown");
 const notice = (name: string, fields: Record<string, Check>, optional: Record<string, Check> = {}): [string, Check] => [name, shape({ kind: one(name), links, ...fields }, optional)];
 const notices: Check = (() => {
@@ -121,19 +125,22 @@ const notices: Check = (() => {
   return (v) => isObject(v) && typeof v["kind"] === "string" && Object.hasOwn(checks, v["kind"]) && (checks[v["kind"]] as Check)(v);
 })();
 
-const document: Check = shape({
-  schema: one(1),
-  week: (v) => typeof v === "string" && /^\d{4}-W\d{2}$/.test(v),
-  opening: shape({ first: date, last: date, as_of: date }),
-  sections: shape({
-    delivered: list(delivered),
-    proven: list(proven),
-    needs_you: list(shape({ group: one("spec", "adr", "question", "pull-request", "residual", "requirement"), count: intOrUnknown, items: list(needsItem) })),
-    at_risk: list(atRisk),
-    cost: list(cost),
-  }),
-  notices: list(notices),
-});
+const documentOf = (schema: 1 | 2, cost: Check): Check =>
+  shape({
+    schema: one(schema),
+    week: (v) => typeof v === "string" && /^\d{4}-W\d{2}$/.test(v),
+    opening: shape({ first: date, last: date, as_of: date }),
+    sections: shape({
+      delivered: list(delivered),
+      proven: list(proven),
+      needs_you: list(shape({ group: one("spec", "adr", "question", "pull-request", "residual", "requirement"), count: intOrUnknown, items: list(needsItem) })),
+      at_risk: list(atRisk),
+      cost: list(cost),
+    }),
+    notices: list(notices),
+  });
+// Each schema has its own closed list; any other number is not read.
+const documents: Record<number, Check> = { 1: documentOf(1, costOf({})), 2: documentOf(2, costOf({ hours_unknown: count })) };
 
 // The document, or undefined when the text is not JSON or departs from the closed list.
 export function parseReport(text: string): ReportDocument | undefined {
@@ -143,5 +150,7 @@ export function parseReport(text: string): ReportDocument | undefined {
   } catch {
     return undefined;
   }
-  return document(value) ? (value as ReportDocument) : undefined;
+  const schema = isObject(value) ? value["schema"] : undefined;
+  const check = typeof schema === "number" ? documents[schema] : undefined;
+  return check !== undefined && check(value) ? (value as ReportDocument) : undefined;
 }
