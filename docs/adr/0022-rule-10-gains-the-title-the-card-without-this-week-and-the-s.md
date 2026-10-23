@@ -1,6 +1,6 @@
 # ADR-0022: SPEC-0005 rule 10 gains the page title, the card without This week and the status words
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-23
 - Deciders: maintainers
 - Related: ADR-0019, ADR-0021
