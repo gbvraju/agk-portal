@@ -129,7 +129,7 @@ test("REQ-101 AC2: a document with schema 1 reaches the page unchanged, with or 
     if (result.kind === "facts") assert.deepEqual(result.document, document, "nothing filtered, renamed or completed");
   }
   const html = await home(harness({ ...listing, "/repos/acme/api/actions/artifacts?per_page=100&page=1": { body: fixture("artifacts-weeks") }, [ZIP(505)]: { status: 302, location: SIGNED }, [SIGNED]: { body: archive() } }).app);
-  assert.match(html, /<h2><a href="https:\/\/github\.com\/acme\/api">acme\/api<\/a><\/h2>\s*<p>Facts read for 2026-W42\.<\/p>/);
+  assert.match(html, /<h2><a href="https:\/\/github\.com\/acme\/api">acme\/api<\/a><\/h2>\s*(?:<section>|<p>Week 2026-W42: not known yet:)/);
 });
 
 test("REQ-101 AC2: an archive stored without compression is read the same", async () => {
@@ -240,7 +240,7 @@ test("REQ-101 AC5: a 403, a 404 and a 500 on one repository give that card the s
         [SIGNED]: { body: archive() },
       };
       const html = await home(harness({ ...listing, ...other, ...make(status) }).app);
-      assert.match(html, /acme\/web<\/a><\/h2>\s*<p>Facts read for 2026-W42\.<\/p>/, `${stage} ${status}: the next repository is read`);
+      assert.match(html, /acme\/web<\/a><\/h2>\s*(?:<section>|<p>Week 2026-W42: not known yet:)/, `${stage} ${status}: the next repository is read`);
       assert.match(html, new RegExp(`acme/api</a></h2>\\s*<p>Not known yet: GitHub answered ${status}\\.</p>`), `${stage} ${status}`);
     }
   }
@@ -331,7 +331,7 @@ test("REQ-101 AC2: an archive of facts.json and report.json, in either order, re
   const mixed = zip([{ ...factsEntry, method: 0 }, reportEntry]);
   assert.equal((await factsOf(readable(505, mixed))).kind, "facts", "stored and deflated entries mix");
   const html = await home(harness({ ...listing, [LIST]: { body: fixture("artifacts-weeks") }, [ZIP(505)]: { status: 302, location: SIGNED }, [SIGNED]: { body: zip([reportEntry, factsEntry]) } }).app);
-  assert.match(html, /acme\/api<\/a><\/h2>\s*<p>Facts read for 2026-W42\.<\/p>/);
+  assert.match(html, /acme\/api<\/a><\/h2>\s*(?:<section>|<p>Week 2026-W42: not known yet:)/);
 });
 
 test("REQ-101 AC2: report.json is not read: whatever its bytes are, it does not change what the page gets, and it is not parsed", async () => {

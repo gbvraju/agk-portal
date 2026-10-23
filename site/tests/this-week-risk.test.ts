@@ -40,7 +40,7 @@ function body(page: string, title: string): string | undefined {
   const end = rest.search(/<h4>|<\/section>/);
   return end < 0 ? rest : rest.slice(0, end);
 }
-const lis = (b: string): string[] => [...b.matchAll(/<li>(.*?)<\/li>/gs)].map((m) => m[1] as string);
+const lis = (b: string): string[] => [...b.matchAll(/<li[^>]*>(?:<span class="badge [a-z]+">[^<]*<\/span> )?(.*?)<\/li>/gs)].map((m) => m[1] as string);
 const risk = (page: string): string[] => lis(body(page, "At risk") ?? "");
 const FIXTURES = ["kinds", "busy", "quiet", "dirty-unknown", "empty"];
 const PR = (n: number): string => `https://github.com/demo-org/demo-repo/pull/${n}`;
@@ -53,7 +53,7 @@ test("REQ-105 AC1: the five parts stand in the spec's order, and each fixture's 
     assert.deepEqual(titles, ["Delivered", "Proven", "Needs your decision", "At risk", "Time and review"], name);
     const s = document.sections;
     const expected = s.delivered.length + s.proven.length + s.needs_you.reduce((n: number, g: Doc) => n + g.items.length, 0) + s.at_risk.length + s.cost.length;
-    assert.equal((page.match(/<li>/g) ?? []).length, expected, `${name}: one line per item of the data, no other line`);
+    assert.equal((page.match(/<li[ >]/g) ?? []).length, expected, `${name}: one line per item of the data, no other line`);
     assert.equal(risk(page).length, s.at_risk.length, name);
   }
 });

@@ -97,7 +97,7 @@ test("REQ-105 AC1: the section opens with the fixed phrase of SPEC-0005 rule 1, 
     assert.ok(html.includes(OPENING(document)), `${name}: ${html.slice(0, 400)}`);
     assert.equal((html.match(/Week 20\d\d-W\d\d:/g) ?? []).length, 1, "once");
     assert.match(html, /<h2><a href="https:\/\/github\.com\/acme\/api">acme\/api<\/a><\/h2>/);
-    assert.ok(html.includes("Facts read for "), "the facts line stays");
+    assert.ok(!html.includes("Facts read for "), "the facts line is removed where This week is shown (SPEC-0008 rule 8)");
   }
 });
 
@@ -140,8 +140,8 @@ test("REQ-105 AC1: a report whose week is not the week of its artifact is not us
   const result = await resultOf([{ name: "facts.json", data: written.facts }, { name: "report.json", data: written.report }], "2026-W42");
   assert.equal(result.kind, "facts");
   const html = factsCard("acme/api", result);
-  assert.ok(html.includes(`Not known yet: ${REPORT_UNREADABLE_REASON}.`));
-  assert.ok(!html.includes("Week 2026-W41:"));
+  assert.ok(html.includes(`Week 2026-W42: not known yet: ${REPORT_UNREADABLE_REASON}.`));
+  assert.ok(!html.includes("Week 2026-W41: Monday"));
 });
 
 test("REQ-105 AC6: facts that were made from a modified working tree show the fixed notice and the facts commit", async () => {
@@ -198,9 +198,9 @@ test("REQ-105 AC8: an archive without report.json (made before kit 0.39.0) gives
   assert.equal(result.kind, "facts");
   const html = factsCard("acme/api", result);
   assert.equal(NO_REPORT_REASON, "the artifact has no report (made before kit 0.39.0)");
-  assert.ok(html.includes("Facts read for 2026-W41."));
-  assert.ok(html.includes(`Not known yet: ${NO_REPORT_REASON}.`));
-  assert.ok(!html.includes("Week 2026-W41:") && !html.includes("This week"));
+  assert.ok(!html.includes("Facts read for"));
+  assert.ok(html.includes(`Week 2026-W41: not known yet: ${NO_REPORT_REASON}.`));
+  assert.ok(!html.includes("Week 2026-W41: Monday") && !html.includes("This week"));
 });
 
 const BREAKS: [string, (report: Doc) => void][] = [
@@ -256,9 +256,9 @@ test("REQ-105 AC8: a report that departs from the closed list in any way gives t
   for (const [name, change] of BREAKS) {
     const { html, result } = await cardOf("kinds", change);
     assert.equal(result.kind, "facts", name);
-    assert.ok(html.includes("Facts read for 2026-W41."), `${name}: the facts line stays`);
-    assert.ok(html.includes(`Not known yet: ${REPORT_UNREADABLE_REASON}.`), `${name}: ${html.slice(0, 500)}`);
-    assert.ok(!html.includes("Week 2026-W41:"), `${name}: no This week`);
+    assert.ok(!html.includes("Facts read for"), `${name}: the facts line is removed`);
+    assert.ok(html.includes(`Week 2026-W41: not known yet: ${REPORT_UNREADABLE_REASON}.`), `${name}: ${html.slice(0, 500)}`);
+    assert.ok(!html.includes("Week 2026-W41: Monday"), `${name}: no This week`);
   }
   assert.equal(REPORT_UNREADABLE_REASON, "the report could not be read");
 });
@@ -268,7 +268,7 @@ test("REQ-105 AC8: documents that are not JSON, empty, a list, a number or null 
   for (const text of ["", "not json", "[]", "7", "null", '"text"', "{", written.report + "garbage", "\u0000" + written.report]) {
     const result = await resultOf([{ name: "facts.json", data: written.facts }, { name: "report.json", data: text }], written.document.week);
     assert.equal(result.kind, "facts");
-    assert.ok(factsCard("acme/api", result).includes(`Not known yet: ${REPORT_UNREADABLE_REASON}.`), JSON.stringify(text.slice(0, 20)));
+    assert.ok(new RegExp(`Week 20\\d\\d-W\\d\\d: not known yet: ${REPORT_UNREADABLE_REASON}\\.`).test(factsCard("acme/api", result)), JSON.stringify(text.slice(0, 20)));
   }
   const invalid = await resultOf([{ name: "facts.json", data: written.facts }, { name: "report.json", data: new Uint8Array([0x7b, 0xff, 0xfe, 0x7d]) }], written.document.week);
   assert.ok(factsCard("acme/api", invalid).includes(REPORT_UNREADABLE_REASON), "invalid UTF-8");
@@ -295,8 +295,8 @@ test("REQ-105 AC8: a repository the facts mark unknown shows no This week, only 
   const { html } = await cardOf("quiet", undefined, (facts) => {
     facts["repo"] = "unknown";
   });
-  assert.ok(html.includes(`Not known yet: ${UNKNOWN_REPOSITORY_REASON}.`));
-  assert.ok(!html.includes("Week 2026-W41:"));
+  assert.ok(html.includes(`Week 2026-W41: not known yet: ${UNKNOWN_REPOSITORY_REASON}.`));
+  assert.ok(!html.includes("Week 2026-W41: Monday"));
 });
 
 test("REQ-105 AC8: facts that cannot be read give the card the facts reason and no This week, as before", async () => {
@@ -304,7 +304,7 @@ test("REQ-105 AC8: facts that cannot be read give the card the facts reason and 
   const result = await resultOf([{ name: "facts.json", data: JSON.stringify({ ...JSON.parse(written.facts), schema: 2 }) }, { name: "report.json", data: written.report }], written.document.week);
   assert.deepEqual(result, { kind: "unknown", reason: "the schema is not 1" });
   const html = factsCard("acme/api", result);
-  assert.ok(html.includes("Not known yet: the schema is not 1.") && !html.includes("Week 2026-W41:"));
+  assert.ok(html.includes("Not known yet: the schema is not 1.") && !html.includes("Week 2026-W41: Monday"));
 });
 
 test("REQ-105 AC1: all five parts are built, and each is shown, empty or not, as the data says", async () => {

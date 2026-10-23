@@ -48,6 +48,9 @@ Written by the intake of one sentence, as data: "The This week section shows, fo
     | Time and review | "A change took {h} hours from opening to merge and {f} review rounds. (#{n})" (unknown: "hours not known yet", "review rounds not known yet") | the per-change line |
     | Time and review | "This week: {n} changes merged; time from opening to merge: {h} hours in total; review rounds in total: {f}; declared as not changing behaviour: {u}; estimate: {N} of {M} within range." / "…estimate: none declared this week." | the totals line |
     | Any | "Nothing this week." / "{What} could not be read: not known yet." / "Week {label}: Monday {start} to Sunday {end} (UTC). What waits for you is as of {today}." / "These numbers were made from a copy with unsaved changes; treat them with care." | the report's opening, empty and notice lines |
+    | Any | "Your projects" (the title and the heading of the signed-in page) | the page title (SPEC-0008 rule 8) |
+    | Any | "Week {label}: not known yet: {reason}." (a card without This week: no report, an unreadable report or an unknown repository; the line "Facts read for {week}." is not shown) | the card without This week (SPEC-0008 rule 8) |
+    | Any | the status words of a badge, always with their colour: "Done", "Proven", "Needs you", "At risk", "Not known yet" | the status badge (SPEC-0008 rule 4) |
 
     An identifier or a number in brackets after a sentence is a reference, linked to its evidence (Q-S0005-2). The label for time is "time from opening to merge" in every phrase, never "cost" or "effort" alone (Q-S0005-1).
 
