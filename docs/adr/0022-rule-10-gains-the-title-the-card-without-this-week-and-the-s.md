@@ -16,6 +16,9 @@ SPEC-0008 (Approved by ADR-0021) gives the portal page a themed, accessible, res
 2. This ADR applies the amendment in the same pull request that builds REQ-108: the table of rule 10 in `docs/specs/0005-the-this-week-section-shows-for-the-week-the-facts-artifact.md` is changed by those three rows and nothing else.
 3. No requirement text, no security rule and no other phrase of rule 10 changes. The grouped At risk fold is not part of this decision (the report carries no count for a grouped item; SPEC-0008 Residual).
 
+4. The maintainers ruled Q-B18-1 on the build pull request (verdict "fix list 8bb40c8"): the builder's reading stands, so a Delivered line is Done, a requirement proven is Proven, every Needs your decision line is Needs you, every At risk line is At risk and every unknown item is Not known yet, while a requirement not proven, the planned-not-counted line and the Time and review tiles carry no badge.
+5. The maintainers ruled Q-B18-2 on the same pull request: the 44 px targets of links by padding and a negative margin are accepted, and the screenshots are the rendered check.
+
 ## Consequences
 
 - The tests of SPEC-0005 that compared the card's facts line now compare the new card wording.

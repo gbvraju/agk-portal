@@ -17,6 +17,7 @@ Each open line is `- <source> | <text> | (due YYYY-MM-DD) | open`. The source is
 - docs/runs/staging-record.md 2026-10-22 | the User-Agent was not isolated as the cause of the first failed sign-in (the credentials were also wrong), and whether Workers' fetch sends none by default is not shown; the portal works with the header (verify) | (due 2026-12-31) | open
 - docs/runs/staging-record.md 2026-10-22 | Cloudflare pull-request builds fail on the kit's root pyproject.toml (a kit defect recorded in agk by the maintainers); a failed pull-request build there does not mean the code is wrong | (due 2026-12-31) | open
 - site/src/adapters/cloudflare/index.ts 2026-10-22 | the differences between Node, where the tests run, and Cloudflare Workers, where the portal runs, that tests cannot show: headers added or not added by default (the missing User-Agent was the first), redirect and body handling, the global objects present, limits on outgoing requests and on time; the staging record (docs/runs/staging-record.md) is where they are found, and each one found becomes a test with a double that does not add what Node adds | (due 2026-12-31) | open
+- site/src/core/thisweek.ts 2026-10-23 | Time and review shows each line as one tile; the approved mockup shows one tile per number, which needs five fixed phrases over the totals (changes merged; hours from opening to merge; review rounds; declared as not changing behaviour; estimate), an amendment of SPEC-0005 rule 10 in a follow-up PR (owner maintainers) | (due 2026-11-06) | open
 
 ## Closed (not findings)
 
