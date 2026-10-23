@@ -21,6 +21,16 @@ Date 2026-10-22 (from `date -u`). Written by the builder from the maintainers' w
 8. Header scan (securityheaders.com, 2026-10-22): grade A. Strict-Transport-Security, Content-Security-Policy, Referrer-Policy, X-Frame-Options (derived from `frame-ancestors`) and X-Content-Type-Options pass; Permissions-Policy is missing. A change to send it was queued (PR #36).
 9. Header scan after PR #36 (maintainers, 2026-10-22): securityheaders.com grades the staging address A+, with Permissions-Policy present. PR #36 is confirmed at staging.
 
+## This week live (2026-10-23)
+
+Date 2026-10-23 (from `date -u`). Written by the builder from the maintainers' words, in words only: no token, secret, cookie or signed address is recorded here.
+
+- **The parts.** The This week section of the card is live on staging with all five parts of the fourth brief: the opening and the notices and the archive's `report.json` (PR #39), Delivered and Time and review (PR #40), Proven and Needs your decision (PR #41) and At risk (PR #42). Each part is rendered from the section of the same name in `report.json`, with the fixed phrases of SPEC-0005 rule 10.
+- **The numbers.** The maintainers confirmed on staging, on 2026-10-23, that every At risk number and every Time and review number on the page matches agk's report for week 2026-W42. The record holds their statement, not the numbers: the builder did not see the page or the report.
+- **The build Cloudflare missed.** Cloudflare's Git connection did not build `main` after the merge of PR #39: no build of `main` had run since PR #38, so staging did not show the section. The maintainers reconnected the Git connection from a computer and retried the build by hand; the retry succeeded and the later merges (#40 to #42) were confirmed on staging. This record does not hold the time of the missed build, the name Cloudflare showed for it or the retry's identifier, because the maintainers did not report them.
+- **The staging gate.** The gate "staging before the next item" was waived for Item 3 only because of this (decisions log, 2026-10-22).
+- **What stays open.** REQ-105 stays planned: AC5's "count of items lacking it" waits for agk's report to carry a count (Q-B13-6). Requirements and Trend wait for the next additions to agk's `report.json`. The first scheduled report with both files (Monday 2026-10-26) is still to be checked against the page.
+
 ## The runbook's checks
 
 | Check | Result |
