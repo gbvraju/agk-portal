@@ -1,6 +1,6 @@
 # SPEC-0008: The portal page has a modern, accessible look from one theme
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-108
 

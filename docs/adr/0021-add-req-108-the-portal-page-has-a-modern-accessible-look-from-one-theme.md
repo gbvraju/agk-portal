@@ -1,6 +1,6 @@
 # ADR-0021: Add REQ-108: The portal page has a themed, accessible, responsive look
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-23
 - Deciders: maintainers
 - Related: SPEC-0008
