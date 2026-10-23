@@ -1,6 +1,6 @@
 # ADR-0024: The report reader accepts schema 2 and shows the count of changes without known hours
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-23
 - Deciders: maintainers
 - Related: ADR-0019, ADR-0023
