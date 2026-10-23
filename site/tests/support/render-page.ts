@@ -1,5 +1,5 @@
 // Renders the signed-in page of the fixture reports to a directory (index.html and style.css), for the screenshots of the
-// build pull request. Not a test; run with: npx tsx tests/support/render-page.ts OUTDIR
+// build pull request. Not a test; run with: npx tsx tests/support/render-page.ts OUTDIR [FIXTURE...]
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { SESSION_COOKIE, createApp, createCore, createGithubClient, factsCard, readFacts, sealSession, stylesheet, type Config, type ConfigName } from "../../src/core/index.ts";
@@ -28,14 +28,18 @@ async function card(name: string, fixture: string, change?: (report: any) => voi
 
 const values: Record<ConfigName, string> = { GITHUB_APP_CLIENT_ID: "Iv1.fixtureclientid", GITHUB_APP_CLIENT_SECRET: "fixture-client-secret-value", SESSION_KEY: KEY, CALLBACK_URL: "https://portal.example/callback" };
 const config: Config = { get: (n) => values[n] };
-const cards = [
-  await card("demo-org/busy-week", "busy", (r) => {
-    r.sections.needs_you[2].items = Array.from({ length: 7 }, (_, i) => ({ kind: "question", id: `Q-X-${i + 1}`, asked_in: "docs/a.md", links: [] }));
-    r.sections.needs_you[2].count = 7;
-  }),
-  await card("demo-org/dirty-week", "dirty-unknown"),
-  await card("demo-org/quiet-week", "quiet"),
-];
+// The fixtures to render come after the directory: one card for each (default: the three of the first screenshots).
+const names = process.argv.slice(3);
+const cards = names.length > 0
+  ? await Promise.all(names.map((fixture) => card(`demo-org/${fixture}-week`, fixture)))
+  : [
+      await card("demo-org/busy-week", "busy", (r) => {
+        r.sections.needs_you[2].items = Array.from({ length: 7 }, (_, i) => ({ kind: "question", id: `Q-X-${i + 1}`, asked_in: "docs/a.md", links: [] }));
+        r.sections.needs_you[2].count = 7;
+      }),
+      await card("demo-org/dirty-week", "dirty-unknown"),
+      await card("demo-org/quiet-week", "quiet"),
+    ];
 const app = createApp(createCore({ config, now: () => START }), { projects: async () => cards });
 const cookie = await sealSession({ token: "token", expiresAt: START + 3_600_000 }, KEY);
 const page = await (await app(new Request("https://portal.example/", { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }))).text();
