@@ -52,7 +52,7 @@ test("REQ-105 AC1: the five parts stand in the spec's order, and each fixture's 
     const titles = [...page.matchAll(/<h4>(.*?)<\/h4>/g)].map((m) => m[1]);
     assert.deepEqual(titles, ["Delivered", "Proven", "Needs your decision", "At risk", "Time and review"], name);
     const s = document.sections;
-    const expected = s.delivered.length + s.proven.length + s.needs_you.reduce((n: number, g: Doc) => n + g.items.length, 0) + s.at_risk.length + s.cost.length;
+    const expected = s.delivered.length + s.proven.length + s.needs_you.reduce((n: number, g: Doc) => n + g.items.length, 0) + s.at_risk.length + s.cost.reduce((n: number, i: Doc) => n + (i.kind === "week-totals" ? 5 : 1), 0);
     assert.equal((page.match(/<li[ >]/g) ?? []).length, expected, `${name}: one line per item of the data, no other line`);
     assert.equal(risk(page).length, s.at_risk.length, name);
   }
