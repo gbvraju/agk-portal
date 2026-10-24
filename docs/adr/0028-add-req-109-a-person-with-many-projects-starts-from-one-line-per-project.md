@@ -1,6 +1,6 @@
 # ADR-0028: Add REQ-109: The start page lists each project on one line, grouped by attention
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-24
 - Deciders: maintainers
 - Related: SPEC-0009

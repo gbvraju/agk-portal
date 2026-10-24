@@ -1,6 +1,6 @@
 # SPEC-0009: A person with many projects starts from one line per project
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-109
 
