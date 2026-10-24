@@ -433,10 +433,11 @@ def pull_record(src: Any, item: dict, authors: list[str] | None = None) -> dict:
     files = get_list(src, f"files-{number}", f"repos/{{repo}}/pulls/{number}/files")
     comments = get_list(src, f"comments-{number}", f"repos/{{repo}}/issues/{number}/comments")
     commits = get_list(src, f"commits-{number}", f"repos/{{repo}}/pulls/{number}/commits")
+    authors = metrics.counted_authors(authors, metrics.author_of(item))
     merged = bool(item.get("merged_at"))
     size, expected = parse_estimate(item["body"]) if "body" in item else (UNKNOWN, UNKNOWN)
     proof = proof_of(src, head) if head else (UNKNOWN, UNKNOWN)
-    return {
+    record = {
         "number": number,
         "state": "open" if item.get("state") == "open" else ("merged" if merged else "closed"),
         "created_at": item.get("created_at"),
@@ -454,6 +455,9 @@ def pull_record(src: Any, item: dict, authors: list[str] | None = None) -> dict:
         "estimated_hours": expected,
         "actual_hours": metrics.actual_hours(commits, item.get("merged_at")) if merged else None,
     }
+    if merged:
+        record["head_cleared"] = metrics.merged_head_cleared(src, head, comments, authors)
+    return record
 
 
 def pulls_section(src: Any, today: date, weeks: int, authors: list[str] | None = None) -> Any:
