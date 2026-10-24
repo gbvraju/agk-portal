@@ -1,6 +1,6 @@
 # ADR-0029: Polish the start page and word REQ-105 AC5 by where the report states a count
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-24
 - Deciders: maintainers
 - Related: ADR-0026, ADR-0028
