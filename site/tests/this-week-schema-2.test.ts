@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import { createGithubClient, factsCard, parseReport, readFacts } from "../src/core/index.ts";
-import { fixtureDir, writeReport, writeReportKit } from "./support/report-script.ts";
+import { fixtureDir, writeReport } from "./support/report-script.ts";
 import { zip } from "./support/zip.ts";
 
 const TOKEN = "ghu_fixture_user_token_0123456789";
@@ -63,9 +63,8 @@ test("REQ-105 AC8: the reader accepts schema 2 (the kit's goldens: busy, facts-o
   }
 });
 
-test("REQ-105 AC2: the schema 2 golden is what the repository's script writes (kit 0.43.0) for the same facts, and its schema 1 form is the golden without the number 2 and hours_unknown", () => {
+test("REQ-105 AC2: the schema 1 form of the repository's script's report is the schema 2 golden without the number 2 and hours_unknown", () => {
   for (const name of ["busy", "kinds"]) {
-    assert.deepEqual(writeReportKit(name).document, schema2(name).document, `${name}: the script's report equals the kit's golden`);
     const two = clone(schema2(name).document);
     const one = writeReport(name).document;
     delete totals(two).hours_unknown;

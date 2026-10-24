@@ -156,7 +156,7 @@ test("REQ-105 AC7: ten changes are lines and eleven are a summary, as the data s
 });
 
 test("REQ-105 AC4: a week with nothing in these two parts says Nothing this week for each, and no part that is not built says anything", async () => {
-  for (const [name, expected] of [["quiet", 3], ["empty", 4]] as const) {
+  for (const [name, expected] of [["quiet", 4], ["empty", 5]] as const) {
     const { html: page } = await html(name);
     assert.deepEqual(part(page, "Delivered"), { items: [], empty: true }, name);
     assert.deepEqual(part(page, "Time and review"), { items: [], empty: true }, name);

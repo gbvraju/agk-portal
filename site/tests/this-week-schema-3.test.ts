@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import { createGithubClient, factsCard, parseReport, readFacts } from "../src/core/index.ts";
-import { fixtureDir } from "./support/report-script.ts";
+import { fixtureDir, writeReportKit } from "./support/report-script.ts";
 import { zip } from "./support/zip.ts";
 
 const TOKEN = "ghu_fixture_user_token_0123456789";
@@ -257,6 +257,10 @@ test("REQ-105 AC2: the schema 3 goldens show every item once for each of the fou
     const expected = s.delivered.length + s.proven.length + s.needs_you.reduce((n: number, g: Doc) => n + g.items.length, 0) + s.at_risk.length + s.cost.reduce((n: number, i: Doc) => n + (i.kind === "week-totals" ? 7 : 1), 0);
     assert.equal((page.match(/<li[ >]/g) ?? []).length, expected, `${name}: one line per item, seven tiles for the totals`);
   }
+});
+
+test("REQ-105 AC2: the schema 3 golden is what the repository's script writes (kit 0.50.0) for the same facts", () => {
+  for (const name of ["busy", "kinds"]) assert.deepEqual(writeReportKit(name).document, schema3(name).document, name);
 });
 
 test("REQ-105 AC8: the schema 3 fixtures are the kit's goldens at v0.50.0 and hold no token and no signed address", () => {
