@@ -157,6 +157,10 @@ const joined = (parts: string[]): string => (parts.length < 2 ? parts.join("") :
 function groupedLine(item: ReportItem, one: (e: Record<string, unknown>) => string, many: string, label: (e: Record<string, unknown>) => string): string {
   const entries = item["entries"] as Record<string, unknown>[];
   const [first] = entries;
+  // From schema 3 the data states how many changes the item names; above 5 the line says that number and the changes follow
+  // in a details element (SPEC-0008 rule 8 as amended). The page counts nothing: the number is the data's `count`.
+  const count = item["count"];
+  if (typeof count === "number" && count > FOLD_OVER) return `<details class="fold"><summary>${count} changes ${many}</summary>\n<p>${entries.map((e) => `${change(item, e["number"])}${label(e)}`).join(", ")}</p>\n</details>`;
   if (entries.length === 1 && first !== undefined) return `${one(first)} (${change(item, first["number"])})`;
   return `Changes ${joined(entries.map((e) => `${change(item, e["number"])}${label(e)}`))} ${many}`;
 }
@@ -207,7 +211,7 @@ function needsPart(groups: ReportGroup[]): string {
   return `<div class="part">\n<h4>Needs your decision</h4>\n${shown.join("\n")}\n</div>`;
 }
 
-// The totals item as its five tiles (six for schema 2, which carries the count of changes without known hours), each a fixed phrase over one field of the item (SPEC-0005 rule 10, Amendment 8). The
+// The totals item as its five tiles (six for schema 2, which carries the count of changes without known hours, seven for schema 3, which adds the count of changes without known review rounds), each a fixed phrase over one field of the item (SPEC-0005 rule 10, Amendment 8). The
 // numbers are placed as the data holds them; an unknown value reads "not known yet" in its tile.
 function totalsTiles(item: ReportItem): string[] {
   const merged = item["merged"] as number;
@@ -219,6 +223,7 @@ function totalsTiles(item: ReportItem): string[] {
     item["hours"] === "unknown" ? `hours from opening to merge, in total: ${NOT_KNOWN}` : `${escapeText(String(item["hours"]))} hours from opening to merge, in total`,
     ...(typeof item["hours_unknown"] === "number" ? [`${plural(item["hours_unknown"], "change", "changes")} without known hours`] : []),
     typeof rounds === "number" ? `${plural(rounds, "review round", "review rounds")} in total` : `review rounds in total: ${NOT_KNOWN}`,
+    ...(typeof item["fix_verdicts_unknown"] === "number" ? [`${plural(item["fix_verdicts_unknown"], "change", "changes")} without known review rounds`] : []),
     `${item["behaviour_unchanged"]} declared as not changing behaviour`,
     `estimate: ${range}`,
   ];

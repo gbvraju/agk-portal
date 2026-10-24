@@ -13,6 +13,22 @@ const out = resolve(process.argv[2] ?? "render-out");
 
 // A fixture named schema2:NAME is the kit's v0.43.0 golden report.json (schema 2) with the facts it was made from.
 function load(fixture: string): { facts: string; document: any } {
+  if (fixture.startsWith("schema3:")) {
+    // The kit's v0.50.0 golden (schema 3); "-fold" is the busy golden with one grouped At risk line over the count of 5.
+    const fold = fixture.endsWith("-fold");
+    const name = fixture.slice("schema3:".length).replace(/-fold$/, "");
+    const dir = resolve(import.meta.dirname, "..", "fixtures");
+    const own = name === "facts-ok" || name === "facts-pr-states";
+    const facts = readFileSync(resolve(own ? resolve(dir, "report-schema-3") : resolve(dir, "report"), `${name}.facts.json`), "utf8");
+    const document = JSON.parse(readFileSync(resolve(dir, "report-schema-3", `${name}.report.json`), "utf8"));
+    if (fold) {
+      const item = document.sections.at_risk.find((i: any) => i.kind === "pull-requests-open-long");
+      item.entries = Array.from({ length: 8 }, (_, i) => ({ number: 30 + i, days: 20 - i }));
+      item.count = 8;
+      item.links = item.entries.map((e: any) => ({ to: "pull-request", url: `https://github.com/demo-org/demo-repo/pull/${e.number}` }));
+    }
+    return { facts, document };
+  }
   if (!fixture.startsWith("schema2:")) return writeReport(fixture);
   const name = fixture.slice("schema2:".length);
   const dir = resolve(import.meta.dirname, "..", "fixtures");
@@ -40,7 +56,7 @@ const config: Config = { get: (n) => values[n] };
 // The fixtures to render come after the directory: one card for each (default: the three of the first screenshots).
 const names = process.argv.slice(3);
 const cards = names.length > 0
-  ? await Promise.all(names.map((fixture) => card(`demo-org/${fixture.replace("schema2:", "")}-week`, fixture)))
+  ? await Promise.all(names.map((fixture) => card(`demo-org/${fixture.replace(/^schema[23]:/, "")}-week`, fixture)))
   : [
       await card("demo-org/busy-week", "busy", (r) => {
         r.sections.needs_you[2].items = Array.from({ length: 7 }, (_, i) => ({ kind: "question", id: `Q-X-${i + 1}`, asked_in: "docs/a.md", links: [] }));

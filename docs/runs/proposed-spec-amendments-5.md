@@ -39,3 +39,28 @@ Date: 2026-10-23 (from `date -u`). Approved specs are changed only through a pro
 3. Rule 10, the totals row (Amendment 8): after the hours phrase it gains "for schema 2 only, a sixth tile after the hours tile, "{hours_unknown} changes without known hours" ("1 change without known hours"; 0 is shown, because 0 is a known value);", and "five tiles in this order" becomes "five tiles in this order (six for schema 2)".
 4. Tests: "a schema other than 1 show no This week" becomes "a schema other than 1 or 2 show no This week", and a line for rules 10 and 13 is added (the sixth tile for schema 2, five tiles for schema 1, the field required for schema 2 and refused for schema 1; REQ-105 AC5 and AC8).
 5. Residual: "the page is tied to `report.json` schema 1 (agk SPEC-0022); a schema change fails the document check and the spec is then amended;" becomes "the page reads `report.json` schemas 1 and 2 (agk SPEC-0022 and SPEC-0024); another schema number fails the document check and the spec is then amended;".
+
+## Amendment 10 — SPEC-0005 rules 10 and 13 and the intro, the Tests and the Residual: report.json schema 3
+
+**Reason.** agk v0.50.0 (agk SPEC-0026, REQ-033) makes the `schema` of `report.json` 3 for every report: the report gains `counts` (the four sections `delivered`, `proven`, `needs_you`, `at_risk`, each an integer or `"unknown"`), the four grouped kinds gain `count` (an integer, the data's own number of its entries), the totals gain `fix_verdicts_unknown` (an integer from 0, always present), and open pull requests whose verdicts could not be read become one `unknown` item that names how many, with links, in the pull-request group of Needs your decision and in At risk. The report of Monday 2026-10-26 is schema 3; the page reads schemas 1 and 2 only, so without this its card would read "not known yet". The page places the data's numbers and computes nothing. SPEC-0001 rule 4 is about `facts.json` and is not changed.
+
+**Old text and new text.** (the words that change; the rest of each paragraph is as it is)
+
+1. The introduction: "(agk SPEC-0022, kit 0.39.0, schema 1; schema 2 from kit 0.43.0, agk SPEC-0024)" becomes "(...; schema 3 from kit 0.50.0, agk SPEC-0026)".
+2. Rule 13: "`schema` the number 1 or 2 (schema 2, ... ; each schema has its own closed list)" becomes "`schema` the number 1, 2 or 3 (schema 2 ...; schema 3, agk SPEC-0026, adds `counts` (exactly the keys `delivered`, `proven`, `needs_you`, `at_risk`, each an integer from 0 or `"unknown"`), `count` (an integer from 0) on the four grouped kinds of At risk and `fix_verdicts_unknown` (an integer from 0) on `week-totals`; each schema has its own closed list and no field of a later schema is allowed in an earlier one)", and the refusal now reads "whose schema is not 1, 2 or 3, or that has an extra or missing key, kind or field for its schema (schema 2 without `hours_unknown`, schema 1 with it, schema 3 without `counts`, `count` or `fix_verdicts_unknown`)".
+3. Rule 10, the totals row (Amendments 8 and 9): "(six for schema 2)" becomes "(six for schema 2, seven for schema 3)" and a tile is added after the review-rounds tile for schema 3 only: "{fix_verdicts_unknown} changes without known review rounds" ("1 change without known review rounds"; 0 is shown).
+4. Rule 10, a new row after the last At risk row: for schema 3, a grouped line whose `count` (the data's own) is above 5, with its changes in a details element: "{n} changes have been open." / "{n} changes were sent back." / "{n} changes were merged without a review." / "{n} changes were merged before their final review."; a count of 5 or fewer stays as before; the unknown item for open pull requests whose verdicts could not be read is the existing "{What} could not be read: not known yet.".
+5. Tests: "a schema other than 1 or 2" becomes "a schema other than 1, 2 or 3", and a line for rules 10 and 13 is added (the seventh tile and the fold for schema 3, neither for schemas 1 and 2; REQ-105 AC5 and AC8).
+6. Residual: "the page reads `report.json` schemas 1 and 2 (agk SPEC-0022 and SPEC-0024)" becomes "schemas 1, 2 and 3 (agk SPEC-0022, SPEC-0024 and SPEC-0026)".
+
+## Amendment 11 — SPEC-0008 rule 8, the Tests and the Residual: the At risk fold
+
+SPEC-0008 is `docs/specs/0008-the-portal-page-has-a-modern-accessible-look-from-one-theme.md`, applied by ADR-0026.
+
+**Reason.** The At risk fold left SPEC-0008 at its approval because report.json carried no count for a grouped item and the length of `entries` would be a count the page computes (SPEC-0008 Residual). Schema 3 carries `count` on each grouped kind, so the fold can be built on the data's number. Its words are the ones the Residual recorded.
+
+**Old text and new text.**
+
+1. Rule 8: "The grouped At risk lines are not folded in this spec (ruled by the maintainers, see above and the Residual)." becomes "A grouped At risk line whose `count` (the data's own `count`, from report.json schema 3, agk SPEC-0026) is above 5 reads its fixed phrase of SPEC-0005 rule 10 with that count and has its changes in a `details` element; a count of 5 or fewer, and every line of schema 1 and schema 2 (which carry no count), stay as SPEC-0005 rule 10 has them (Amendment 11)."
+2. Tests: the line for rules 8 and 9 gains "the At risk fold over a count of 5 (the data's count, never the entries)".
+3. Residual: the bullet of 2026-10-23 on the At risk fold becomes a bullet of 2026-10-24 saying it was built when the kit's report.json carried a count for each grouped item (schema 3, ADR-0026), with the same four phrases.
