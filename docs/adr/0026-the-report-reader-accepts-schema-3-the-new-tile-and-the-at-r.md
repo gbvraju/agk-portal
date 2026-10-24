@@ -1,6 +1,6 @@
 # ADR-0026: The report reader accepts schema 3, with the new tile and the At risk fold
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-24
 - Deciders: maintainers
 - Related: ADR-0019, ADR-0024, ADR-0022
