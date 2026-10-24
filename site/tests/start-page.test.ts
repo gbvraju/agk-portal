@@ -184,12 +184,13 @@ test("REQ-109 AC3: a report of the current week or of the previous one is groupe
 test("REQ-109 AC4: a count of 0 carries the zero class and a count above 0 or unknown never does", async () => {
   const r = await schema3("kinds", (d) => ((d.counts.delivered = 0), (d.counts.needs_you = "unknown"), (d.counts.at_risk = 3)));
   const line = groups(await page(ok([{ name: "acme/api", result: r }]), WEEK42))[0]?.lines[0] as string;
-  assert.match(line, /<span class="figure zero">delivered: 0<\/span>/);
-  assert.match(line, /<span class="figure">needs you: not known yet<\/span>/);
-  assert.match(line, /<span class="figure">at risk: 3<\/span>/);
+  assert.match(line, /<span class="figure pill done zero">delivered: 0<\/span>/);
+  assert.match(line, /<span class="figure pill none">needs you: not known yet<\/span>/);
+  assert.match(line, /<span class="figure pill risk">at risk: 3<\/span>/);
   const zeros = await schema3("kinds", (d) => ((d.counts.needs_you = 0), (d.counts.at_risk = 0), (d.counts.delivered = 0), (totals(d).merged = 0)));
   const zl = groups(await page(ok([{ name: "acme/api", result: zeros }]), WEEK42))[0]?.lines[0] as string;
-  assert.equal((zl.match(/figure zero/g) ?? []).length, 4, "delivered, needs you, at risk and merged are 0");
+  assert.equal((zl.match(/ zero"/g) ?? []).length, 4, "delivered, needs you, at risk and merged are 0");
+  assert.match(zl, /<span class="figure zero">merged: 0<\/span>/, "merged is plain text, not a pill");
   assert.match(zl, /<span class="figure">hours: 107\.3<\/span>/, "hours is the data's string and is never muted");
 });
 
@@ -253,7 +254,7 @@ test("REQ-109 AC6: the find form keeps the lines whose name contains q ignoring 
   const long = await page(list, WEEK42, `?q=${"a".repeat(150)}`);
   assert.match(long, new RegExp(`value="a{100}"`));
   assert.doesNotMatch(long, /a{101}/);
-  assert.match(all.length ? await page(list, WEEK42) : "", /<form method="get" action="\/" class="find">\s*<input type="text" name="q" value="" maxlength="100" aria-label="Find a project">\s*<button type="submit">Find a project<\/button>\s*<\/form>/);
+  assert.match(all.length ? await page(list, WEEK42) : "", /<form method="get" action="\/" class="find">\s*<label for="q">Find a project<\/label>\s*<input type="text" id="q" name="q" value="" maxlength="100">\s*<button type="submit">Find<\/button>\s*<\/form>/);
 });
 
 test("REQ-109 AC1: a person with no project sees the empty phrase, one with a single project still sees the list, and the notices and the unreadable list are said", async () => {
@@ -318,4 +319,39 @@ test("REQ-109 AC8: the start page has no script, no style attribute, only classe
   assert.match(html, /<title>Your projects<\/title>/);
   assert.match(html, /<h1>Your projects<\/h1>/);
   assert.match(html, /<form method="post" action="\/signout"><button type="submit">Sign out<\/button><\/form>/);
+});
+
+test("REQ-109 AC1: the name in the link of a line is escaped in its href, as everywhere else", async () => {
+  const r = await KIT("kinds");
+  const name = 'acme/a&b"c<d>\'e';
+  const html = await page(ok([{ name, result: r }]), WEEK42);
+  assert.match(html, /<a href="\/p\/acme\/a&amp;b&quot;c&lt;d&gt;'e">acme\/a&amp;b&quot;c&lt;d&gt;'e<\/a>/);
+  assert.doesNotMatch(html, /href="\/p\/acme\/a&b/, "no raw ampersand in the href");
+  assert.doesNotMatch(html, /a&b"c|<d>/, "no raw quote or tag from the name");
+  assert.equal([...html.matchAll(/href="([^"]*)"/g)].filter((m) => (m[1] as string).startsWith("/p/")).length, 1);
+});
+
+test("REQ-109 AC6: the find input has one accessible name, a visible label tied to it, and the button reads Find", async () => {
+  const html = await page(ok([{ name: "acme/api", result: await KIT("kinds") }]), WEEK42);
+  assert.match(html, /<label for="q">Find a project<\/label>\s*<input type="text" id="q" name="q"/);
+  assert.doesNotMatch(html, /aria-label=/, "the visible label is the one name");
+  assert.match(html, /<button type="submit">Find<\/button>/);
+  assert.equal((html.match(/id="q"/g) ?? []).length, 1);
+  const empty = await page(ok([]), WEEK42);
+  assert.doesNotMatch(empty, /<input/, "no form when there is no project");
+});
+
+test("REQ-109 AC1: the counts are pills in the status colours: delivered done, needs you decide, at risk risk, not known yet none; merged and hours are plain text", async () => {
+  const r = await schema3("kinds", (d) => ((d.counts.delivered = 4), (d.counts.needs_you = 2), (d.counts.at_risk = "unknown")));
+  const line = groups(await page(ok([{ name: "acme/api", result: r }]), WEEK42))[0]?.lines[0] as string;
+  assert.match(line, /<span class="figure pill done">delivered: 4<\/span>/);
+  assert.match(line, /<span class="figure pill decide">needs you: 2<\/span>/);
+  assert.match(line, /<span class="figure pill none">at risk: not known yet<\/span>/);
+  assert.match(line, /<span class="figure">merged: 4<\/span>/);
+  assert.match(line, /<span class="figure">hours: 107\.3<\/span>/);
+  const unknownAll = await schema3("kinds", (d) => ((d.counts.delivered = "unknown"), (d.counts.needs_you = "unknown"), (d.counts.at_risk = "unknown")));
+  const text = groups(await page(ok([{ name: "acme/api", result: unknownAll }]), WEEK42))[0]?.lines[0] as string;
+  assert.equal((text.match(/pill none/g) ?? []).length, 3, "every count that is not known yet is a none pill");
+  const notKnown = groups(await page(ok([{ name: "acme/api", result: await resultOf("not json", undefined, "2026-W41") }]), WEEK42))[0]?.lines[0] as string;
+  assert.doesNotMatch(notKnown, /pill/, "a line under Not known yet has no figure");
 });

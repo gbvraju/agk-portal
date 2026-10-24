@@ -33,3 +33,25 @@ test("REQ-109 AC8: the text input is a native control at least 44 px high with t
   assert.ok(input.some((r) => /border:[^;]*var\(--border\)/.test(r.body) && /background:\s*var\(--surface\)/.test(r.body) && /color:\s*var\(--text\)/.test(r.body)), "tokens");
   assert.match(css, /:focus-visible\s*\{[^}]*outline:\s*[^;}]*var\(--accent\)/);
 });
+
+test("REQ-109 AC8: the pills use the status tokens of SPEC-0008, a zero pill is plain and muted, and merged and hours are not pills", () => {
+  const all = rules(css);
+  const body = (selector: string): string => all.find((r) => r.selector.split(",").map((s) => s.trim()).includes(selector))?.body ?? "";
+  for (const status of ["done", "decide", "risk", "none"]) {
+    const rule = body(`.pill.${status}`);
+    assert.match(rule, new RegExp(`background:\\s*var\\(--${status}-bg\\)`), `${status}: the background token`);
+    assert.match(rule, new RegExp(`color:\\s*var\\(--${status}-fg\\)`), `${status}: the foreground token`);
+  }
+  assert.match(body(".pill"), /border-radius:\s*999px/);
+  const zero = body(".pill.zero");
+  assert.match(zero, /background:\s*none/);
+  assert.match(zero, /color:\s*var\(--muted\)/);
+  assert.ok(css.indexOf(".pill.zero") > css.indexOf(".pill.risk"), "the zero pill comes after the coloured ones");
+  assert.ok(!all.some((r) => /\.figure\b(?!\.zero)[^,]*$/.test(r.selector) && /background/.test(r.body) && !r.selector.includes("pill")), "a figure that is not a pill has no background");
+});
+
+test("REQ-109 AC8: the visible label of the find input is a native label that is not hidden", () => {
+  const label = rules(css).find((r) => r.selector.split(",").map((s) => s.trim()).includes(".find label"));
+  assert.ok(label !== undefined, "the label has a rule");
+  assert.doesNotMatch(label.body, /display:\s*none|visibility:\s*hidden|position:\s*absolute|clip/);
+});

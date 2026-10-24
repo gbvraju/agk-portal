@@ -33,7 +33,7 @@ interface Placed {
   line: string;
 }
 
-const link = (name: string): string => `<a href="/p/${name}">${escapeText(name)}</a>`;
+const link = (name: string): string => `<a href="/p/${escapeText(name)}">${escapeText(name)}</a>`;
 const week = (label: string): string => `<span class="weeklabel">Week ${escapeText(label)}</span>`;
 const knownYet = (name: string, label: string | undefined, reason: string): Placed => ({
   name,
@@ -41,10 +41,14 @@ const knownYet = (name: string, label: string | undefined, reason: string): Plac
   line: `<li class="project">${link(name)}${label === undefined ? "" : ` ${week(label)}`} <span class="reason">Not known yet: ${escapeText(reason)}.</span></li>`,
 });
 
-// A count of the report, as a figure; 0 is the one the stylesheet mutes on a wide screen and hides on a phone.
-function figure(label: string, value: unknown): string {
-  const shown = value === "unknown" || value === undefined ? NOT_KNOWN : escapeText(String(value));
-  return `<span class="figure${value === 0 ? " zero" : ""}">${label}: ${shown}</span>`;
+// A figure of the report. A count is a pill in the status colours of SPEC-0008 (none when it is not known yet); merged and
+// hours are plain text. A 0 is the one the stylesheet mutes on a wide screen and hides on a phone.
+type Pill = "done" | "decide" | "risk";
+function figure(label: string, value: unknown, pill?: Pill): string {
+  const unknown = value === "unknown" || value === undefined;
+  const shown = unknown ? NOT_KNOWN : escapeText(String(value));
+  const status = pill === undefined ? "" : ` pill ${unknown ? "none" : pill}`;
+  return `<span class="figure${status}${value === 0 ? " zero" : ""}">${label}: ${shown}</span>`;
 }
 
 function place(name: string, result: FactsResult, now: number): Placed {
@@ -59,7 +63,7 @@ function place(name: string, result: FactsResult, now: number): Placed {
   const attention = [counts["needs_you"], counts["at_risk"]].some((c) => c === "unknown" || (typeof c === "number" && c > 0));
   const line =
     `<li class="project">${link(name)} ${week(result.week)} ` +
-    [figure("delivered", counts["delivered"]), figure("needs you", counts["needs_you"]), figure("at risk", counts["at_risk"]), figure("merged", totals?.["merged"]), figure("hours", totals?.["hours"])].join(" ") +
+    [figure("delivered", counts["delivered"], "done"), figure("needs you", counts["needs_you"], "decide"), figure("at risk", counts["at_risk"], "risk"), figure("merged", totals?.["merged"]), figure("hours", totals?.["hours"])].join(" ") +
     "</li>";
   return { name, group: attention ? "attention" : "track", line };
 }
@@ -80,8 +84,8 @@ export function cleanQuery(raw: string | null): string {
 export function startPageBody(list: ProjectList, now: number, rawQuery: string | null): string {
   const query = cleanQuery(rawQuery);
   const find =
-    `<form method="get" action="/" class="find">\n<input type="text" name="q" value="${escapeText(query)}" maxlength="${MAX_QUERY}" aria-label="Find a project">\n` +
-    `<button type="submit">Find a project</button>\n</form>`;
+    `<form method="get" action="/" class="find">\n<label for="q">Find a project</label>\n<input type="text" id="q" name="q" value="${escapeText(query)}" maxlength="${MAX_QUERY}">\n` +
+    `<button type="submit">Find</button>\n</form>`;
   const head = `<h1>Your projects</h1>`;
   if (list.kind === "unreadable") return `${head}\n<p>${PROJECTS_UNREADABLE_PHRASE}</p>\n${SIGN_OUT}`;
   const notices = list.notices.join("\n");
