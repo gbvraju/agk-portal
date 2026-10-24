@@ -19,8 +19,9 @@ export type { FactsResult, ReportOutcome } from "./facts.ts";
 export { parseReport } from "./report.ts";
 export type { ReportDocument, ReportItem } from "./report.ts";
 export { DIRTY_NOTICE_PHRASE, NO_REPORT_REASON, REPORT_UNREADABLE_REASON, UNKNOWN_REPOSITORY_REASON, openingPhrase, thisWeekSection } from "./thisweek.ts";
-export { PROJECTS_UNREADABLE_PHRASE, factsCard, listProjectCards, listReadableRepositories, permissionsRefusedLine } from "./projects.ts";
-export type { Listing } from "./projects.ts";
+export { PROJECTS_UNREADABLE_PHRASE, factsCard, findProject, listProjectCards, listProjects, listReadableRepositories, permissionsRefusedLine } from "./projects.ts";
+export type { Listing, ProjectList, ProjectLookup } from "./projects.ts";
+export { MAX_QUERY, NO_COUNTS_REASON, NO_MATCH_PHRASE, isoWeekLabel, staleReason } from "./startpage.ts";
 export { SESSION_COOKIE, SESSION_MAX_MS, completeSignIn, openSession, sealPlaintext, sealSession, sessionCookie } from "./session.ts";
 export type { Session } from "./session.ts";
 export {

@@ -95,12 +95,31 @@ export function factsCard(name: string, result: FactsResult): string {
   return `<section class="card">${heading}${rest}</section>`;
 }
 
-// The cards of the page: the facts of every repository the person can read, each read on its own so that one failure
-// is that card's alone.
-export async function listProjectCards(github: GithubClient, token: string, now: number): Promise<readonly string[]> {
+// The projects of the page: the facts of every repository the person can read, each read on its own so that one failure is
+// that project's alone. `notices` are the fixed lines of the installations that were not read (SPEC-0004 rule 7), as HTML.
+export type ProjectList = { kind: "unreadable" } | { kind: "ok"; notices: string[]; projects: { name: string; result: FactsResult }[] };
+
+export async function listProjects(github: GithubClient, token: string, now: number): Promise<ProjectList> {
   const listing = await listReadableRepositories(github, token);
-  if (listing.kind === "unknown") return [`<p>${PROJECTS_UNREADABLE_PHRASE}</p>`];
+  if (listing.kind === "unknown") return { kind: "unreadable" };
   const notices = listing.refused.map((account) => `<p>${permissionsRefusedLine(account)}</p>`);
-  const cards = await Promise.all(listing.repositories.map(async (name) => factsCard(name, await readFacts(github, token, name, now))));
-  return [...notices, ...cards];
+  const projects = await Promise.all(listing.repositories.map(async (name) => ({ name, result: await readFacts(github, token, name, now) })));
+  return { kind: "ok", notices, projects };
+}
+
+// One project of the person's list (SPEC-0009 rule 5): the list is read, and the facts of this project only when it is in it.
+export type ProjectLookup = { kind: "found"; result: FactsResult } | { kind: "missing" } | { kind: "unreadable" };
+
+export async function findProject(github: GithubClient, token: string, name: string, now: number): Promise<ProjectLookup> {
+  const listing = await listReadableRepositories(github, token);
+  if (listing.kind === "unknown") return { kind: "unreadable" };
+  if (!listing.repositories.includes(name)) return { kind: "missing" };
+  return { kind: "found", result: await readFacts(github, token, name, now) };
+}
+
+// The cards of the page: one card for each project, and the notices before them.
+export async function listProjectCards(github: GithubClient, token: string, now: number): Promise<readonly string[]> {
+  const list = await listProjects(github, token, now);
+  if (list.kind === "unreadable") return [`<p>${PROJECTS_UNREADABLE_PHRASE}</p>`];
+  return [...list.notices, ...list.projects.map((p) => factsCard(p.name, p.result))];
 }

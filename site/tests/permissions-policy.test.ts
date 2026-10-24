@@ -34,7 +34,7 @@ const values: Record<ConfigName, string> = {
   CALLBACK_URL: "https://portal.example/callback",
 };
 const config: Config = { get: (name) => values[name] };
-const app = createApp(createCore({ config, now: () => START }), { projects: async () => [] });
+const app = createApp(createCore({ config, now: () => START }), { projects: async () => ({ kind: "ok", notices: [], projects: [] }) });
 
 test("REQ-104 AC1: the header value denies every feature of the verified list with an empty allowlist, and nothing else", () => {
   const entries = PERMISSIONS_POLICY.split(", ");

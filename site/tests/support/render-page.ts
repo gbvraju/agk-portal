@@ -2,7 +2,7 @@
 // build pull request. Not a test; run with: npx tsx tests/support/render-page.ts OUTDIR [FIXTURE...]
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { SESSION_COOKIE, createApp, createCore, createGithubClient, factsCard, readFacts, sealSession, stylesheet, type Config, type ConfigName } from "../../src/core/index.ts";
+import { SESSION_COOKIE, createApp, createCore, createGithubClient, readFacts, sealSession, stylesheet, type Config, type ConfigName, type FactsResult } from "../../src/core/index.ts";
 import { writeReport } from "./report-script.ts";
 import { zip } from "./zip.ts";
 
@@ -36,7 +36,7 @@ function load(fixture: string): { facts: string; document: any } {
   return { facts, document: JSON.parse(readFileSync(resolve(dir, `report-schema-2/${name}.report.json`), "utf8")) };
 }
 
-async function card(name: string, fixture: string, change?: (report: any) => void): Promise<string> {
+async function project(name: string, fixture: string, change?: (report: any) => void): Promise<{ name: string; result: FactsResult }> {
   const written = load(fixture);
   const doc = JSON.parse(JSON.stringify(written.document));
   change?.(doc);
@@ -48,26 +48,51 @@ async function card(name: string, fixture: string, change?: (report: any) => voi
     [SIGNED]: () => new Response(bytes as BodyInit),
   };
   const github = createGithubClient({ fetch: async (url) => routes[url]?.() ?? new Response("{}", { status: 404 }) });
-  return factsCard(name, await readFacts(github, "token", name, START));
+  return { name, result: await readFacts(github, "token", name, START) };
 }
 
 const values: Record<ConfigName, string> = { GITHUB_APP_CLIENT_ID: "Iv1.fixtureclientid", GITHUB_APP_CLIENT_SECRET: "fixture-client-secret-value", SESSION_KEY: KEY, CALLBACK_URL: "https://portal.example/callback" };
 const config: Config = { get: (n) => values[n] };
-// The fixtures to render come after the directory: one card for each (default: the three of the first screenshots).
-const names = process.argv.slice(3);
-const cards = names.length > 0
-  ? await Promise.all(names.map((fixture) => card(`demo-org/${fixture.replace(/^schema[23]:/, "")}-week`, fixture)))
-  : [
-      await card("demo-org/busy-week", "busy", (r) => {
-        r.sections.needs_you[2].items = Array.from({ length: 7 }, (_, i) => ({ kind: "question", id: `Q-X-${i + 1}`, asked_in: "docs/a.md", links: [] }));
-        r.sections.needs_you[2].count = 7;
-      }),
-      await card("demo-org/dirty-week", "dirty-unknown"),
-      await card("demo-org/quiet-week", "quiet"),
-    ];
-const app = createApp(createCore({ config, now: () => START }), { projects: async () => cards });
-const cookie = await sealSession({ token: "token", expiresAt: START + 3_600_000 }, KEY);
-const page = await (await app(new Request("https://portal.example/", { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }))).text();
+// The clock is a day of 2026-W42: the goldens' week 2026-W41 is the previous week.
+const NOW = Date.UTC(2026, 9, 14, 12);
+// Arguments after the directory: the fixtures to render, one project each, and the flags --project (render the page of the
+// first project) and --q=TEXT (the find query of the start page). With none, a mixed list of nine projects.
+const args = process.argv.slice(3);
+const flags = args.filter((a) => a.startsWith("--"));
+const fixtures = args.filter((a) => !a.startsWith("--"));
+const query = flags.find((f) => f.startsWith("--q="))?.slice(4) ?? "";
+const foldBusy = (r: any): void => {
+  r.sections.needs_you[2].items = Array.from({ length: 7 }, (_, i) => ({ kind: "question", id: `Q-X-${i + 1}`, asked_in: "docs/a.md", links: [] }));
+  r.sections.needs_you[2].count = 7;
+};
+const calm = (r: any): void => {
+  r.counts.needs_you = 0;
+  r.counts.at_risk = 0;
+};
+const projects =
+  fixtures.length > 0
+    ? await Promise.all(fixtures.map((fixture) => project(`demo-org/${fixture.replace(/^schema[23]:/, "")}-week`, fixture)))
+    : [
+        await project("acme/api", "schema3:busy", foldBusy),
+        await project("acme/web", "schema3:kinds", calm),
+        await project("acme/app", "schema3:facts-ok"),
+        await project("acme/lib", "schema3:kinds", (r) => ((r.counts.needs_you = "unknown"), (r.counts.at_risk = 0))),
+        await project("acme/quiet", "schema3:kinds", (r) => ((r.counts.delivered = 0), calm(r), (r.sections.cost.find((i: any) => i.kind === "week-totals").merged = 0))),
+        await project("beta-co/old-kit", "schema2:kinds"),
+        await project("beta-co/stale", "schema3:kinds", (r) => (r.week = "2026-W38")),
+        await project("beta-co/pr-states", "schema3:facts-pr-states"),
+        await project("gamma/dirty", "dirty-unknown"),
+      ];
+const app = createApp(createCore({ config, now: () => NOW }), {
+  projects: async () => ({ kind: "ok", notices: [], projects }),
+  project: async (_token, name) => {
+    const found = projects.find((p) => p.name === name);
+    return found === undefined ? { kind: "missing" } : { kind: "found", result: found.result };
+  },
+});
+const cookie = await sealSession({ token: "token", expiresAt: NOW + 3_600_000 }, KEY);
+const path = flags.includes("--project") ? `/p/${(projects[0] as { name: string }).name}` : `/${query === "" ? "" : `?q=${encodeURIComponent(query)}`}`;
+const page = await (await app(new Request(`https://portal.example${path}`, { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }))).text();
 mkdirSync(out, { recursive: true });
 writeFileSync(resolve(out, "index.html"), page.replace('href="/style.css"', 'href="style.css"'));
 writeFileSync(resolve(out, "style.css"), await stylesheet().text());
