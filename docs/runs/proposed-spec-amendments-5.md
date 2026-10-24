@@ -64,3 +64,14 @@ SPEC-0008 is `docs/specs/0008-the-portal-page-has-a-modern-accessible-look-from-
 1. Rule 8: "The grouped At risk lines are not folded in this spec (ruled by the maintainers, see above and the Residual)." becomes "A grouped At risk line whose `count` (the data's own `count`, from report.json schema 3, agk SPEC-0026) is above 5 reads its fixed phrase of SPEC-0005 rule 10 with that count and has its changes in a `details` element; a count of 5 or fewer, and every line of schema 1 and schema 2 (which carry no count), stay as SPEC-0005 rule 10 has them (Amendment 11)."
 2. Tests: the line for rules 8 and 9 gains "the At risk fold over a count of 5 (the data's count, never the entries)".
 3. Residual: the bullet of 2026-10-23 on the At risk fold becomes a bullet of 2026-10-24 saying it was built when the kit's report.json carried a count for each grouped item (schema 3, ADR-0026), with the same four phrases.
+
+## Amendment 12 — SPEC-0009 rules 1 and 6: the pills, the visible label and the button
+
+SPEC-0009 is `docs/specs/0009-a-person-with-many-projects-starts-from-one-line-per-project.md`, applied by ADR-0029.
+
+**Reason.** The approved mockup shows each count of a start-page line as a small pill in the status colours, and the find input needs a visible label (an accessible name) with a short button. No new phrase is needed beyond the button "Find" (the label is the existing "Find a project").
+
+**Old text and new text.**
+
+1. Rule 1: after "and a link to `/p/{owner}/{repo}`." the new sentence is added: "Each of the three counts is a small pill in the status colours of SPEC-0008 (delivered: done; needs you: decide; at risk: risk; a count that is not known yet: none); merged and hours are plain text; a count of 0 stays plain, muted and hidden on a phone (rule 4), and no new phrase is added: the words stay "delivered", "needs you" and "at risk"."
+2. Rule 6: "with one native text input `q` and a button "Find a project" keeps" becomes "with a visible label "Find a project" tied (`for`) to one native text input `q`, the label being the input's one accessible name, and a button "Find", keeps", and the list of the page's fixed phrases gains "Find".

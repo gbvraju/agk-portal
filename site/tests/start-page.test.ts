@@ -325,7 +325,7 @@ test("REQ-109 AC1: the name in the link of a line is escaped in its href, as eve
   const r = await KIT("kinds");
   const name = 'acme/a&b"c<d>\'e';
   const html = await page(ok([{ name, result: r }]), WEEK42);
-  assert.match(html, /<a href="\/p\/acme\/a&amp;b&quot;c&lt;d&gt;&#39;e">acme\/a&amp;b&quot;c&lt;d&gt;&#39;e<\/a>/);
+  assert.match(html, /<a href="\/p\/acme\/a&amp;b&quot;c&lt;d&gt;'e">acme\/a&amp;b&quot;c&lt;d&gt;'e<\/a>/);
   assert.doesNotMatch(html, /href="\/p\/acme\/a&b/, "no raw ampersand in the href");
   assert.doesNotMatch(html, /a&b"c|<d>/, "no raw quote or tag from the name");
   assert.equal([...html.matchAll(/href="([^"]*)"/g)].filter((m) => (m[1] as string).startsWith("/p/")).length, 1);

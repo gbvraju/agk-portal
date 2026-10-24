@@ -172,7 +172,8 @@ summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));gap:12px}
 .tiles .tile{padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)}
 .part.time{margin:16px 0;padding:0;border:0;background:none}
-.find{display:flex;gap:8px;margin:16px 0}
+.find{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.find label{flex:0 0 100%;font-weight:600}
 input{flex:1 1 auto;min-width:0;min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:8px;font:inherit;color:var(--text);background:var(--surface)}
 .group{margin:16px 0}
 .projects{margin:0;padding:0;list-style:none;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
@@ -181,6 +182,12 @@ input{flex:1 1 auto;min-width:0;min-height:44px;padding:0 12px;border:1px solid 
 .weeklabel,.reason{color:var(--muted)}
 .figure{white-space:nowrap}
 .zero{color:var(--muted)}
+.pill{display:inline-block;padding:0 10px;border-radius:999px;font-size:.85rem;font-weight:700;line-height:1.7}
+.pill.done{background:var(--done-bg);color:var(--done-fg)}
+.pill.decide{background:var(--decide-bg);color:var(--decide-fg)}
+.pill.risk{background:var(--risk-bg);color:var(--risk-fg)}
+.pill.none{background:var(--none-bg);color:var(--none-fg)}
+.pill.zero{background:none;color:var(--muted);font-weight:400}
 .back{margin:16px 0 0}
 .week{margin:8px 0 0}
 .badge{display:inline-block;margin-right:8px;padding:0 10px;border-radius:999px;font-size:.8rem;font-weight:700;line-height:1.7;white-space:nowrap}
