@@ -161,6 +161,7 @@ button{display:inline-block}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 button{padding:0 20px;border:1px solid var(--accent);border-radius:8px;font:inherit;font-weight:600;color:var(--accent-ink);background:var(--accent);cursor:pointer}
 details{margin:8px 0}
+.part li details{display:inline-block;margin:0;vertical-align:top}
 summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}
 .card{margin:16px 0;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
 .parts{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin:16px 0}
@@ -168,7 +169,7 @@ summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}
 .part ul,.tiles{margin:0;padding:0;list-style:none}
 .part li{padding:8px 0;border-top:1px solid var(--border)}
 .part li:first-child{border-top:0}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));gap:12px}
 .tiles .tile{padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)}
 .part.time{margin:16px 0;padding:0;border:0;background:none}
 .week{margin:8px 0 0}
