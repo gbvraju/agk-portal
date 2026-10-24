@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess  # nosec B404 - fixed argument lists only, no shell
@@ -20,6 +21,7 @@ MARKER_RUN = re.compile(r"(REQ-\d{3}(?:[ ,/]+REQ-\d{3})*)(?: AC(\d+)\b)?")
 MARKER_SKIP_PARTS = frozenset({".git", "node_modules", "vendor", "target", "__pycache__", ".venv"})
 ALLOWED_STATUS = ("planned", "in-progress", "done")
 AC_COVERAGE = ("warn", "block")
+PR_MODES = ("strict", "flow")
 BEHAVIOUR_UNCHANGED = "Behaviour: unchanged"
 FENCE = re.compile(r"^\s*(```|~~~)")
 
@@ -158,6 +160,65 @@ def show(root: Path, rev: str, path: str) -> str | None:
         ["git", "show", f"{rev}:{path}"], cwd=root, capture_output=True, text=True
     )
     return proc.stdout if proc.returncode == 0 else None
+
+
+FIX_LIST = re.compile(r"Verdict: fix list ([0-9a-f]{4,40})")
+FINAL_LINE = re.compile(r"Final: (\S+) (?:(REQ-\d+) )?(\S+) -> (\S+)")
+REQUIREMENTS = "docs/requirements.md"
+
+
+def covered_fix_list(body: str) -> tuple[str, list[tuple[str, str | None, str, str]]] | None:
+    """SPEC-0021 rules 1 and 2: (reviewed sha, [(path, requirement id, old, new)]) or None."""
+    lines = body.splitlines()
+    head = FIX_LIST.fullmatch(lines[0]) if lines else None
+    if head is None or any(re.match(r"\s*\d+\.", line) for line in lines):
+        return None
+    edits = []
+    for line in lines:
+        if line.startswith("Final:"):
+            match = FINAL_LINE.fullmatch(line)
+            if match is None or (match.group(1) == REQUIREMENTS) != bool(match.group(2)):
+                return None
+            edits.append((match.group(1), match.group(2), match.group(3), match.group(4)))
+    return (head.group(1), edits) if edits else None
+
+
+def status_edit(text: str, old: str, new: str, req: str | None = None) -> str | None:
+    """`text` with the one `- Status: old` line (of the section `### req`, if given) set to new."""
+    lines = text.splitlines(keepends=True)
+    if req is not None:
+        start = next((i for i, ln in enumerate(lines) if ln.startswith(f"### {req} ")), None)
+        if start is None:
+            return None
+        end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("### ")), None)
+        span = range(start, len(lines) if end is None else end)
+    else:
+        span = range(len(lines))
+    hits = [i for i in span if lines[i].rstrip("\n") == f"- Status: {old}"]
+    if len(hits) != 1:
+        return None
+    lines[hits[0]] = f"- Status: {new}" + lines[hits[0]][len(lines[hits[0]].rstrip("\n")) :]
+    return "".join(lines)
+
+
+def final_commit_problems(
+    root: Path, first: str, second: str, edits: list[tuple[str, str | None, str, str]]
+) -> tuple[bool, list[str]]:
+    """SPEC-0021 rule 3: (the files changed are exactly the named ones, the paths whose text is
+    not exactly the named status edits applied to `first`)."""
+    tokens = git(root, "diff", "-z", "--name-status", "--no-renames", first, second).split("\0")
+    changed = {tokens[i + 1]: tokens[i][:1] for i in range(0, len(tokens) - 1, 2)}
+    paths = {path for path, *_ in edits}
+    files_ok = set(changed) == paths and set(changed.values()) <= {"M"}
+    bad = []
+    for path in sorted(paths):
+        text = show(root, first, path)
+        for edit_path, req, old, new in edits:
+            if edit_path == path and text is not None:
+                text = status_edit(text, old, new, req)
+        if text is None or text != show(root, second, path):
+            bad.append(path)
+    return files_ok, bad
 
 
 def read_list(text: str) -> list[str]:
@@ -332,6 +393,7 @@ DEFAULT_CONFIG = {
     "inbox_hours": 48,
     "ac_coverage": "warn",
     "proof_timeout": 900,
+    "pr_mode": "strict",
 }
 
 
@@ -470,6 +532,40 @@ def ac_coverage_mode(root: Path) -> str:
     if value not in AC_COVERAGE:
         raise CheckError("ac_coverage must be 'warn' or 'block' (setting: ac_coverage in agk.toml)")
     return value
+
+
+def pr_mode(root: Path) -> str:
+    """`strict` or `flow` from agk.toml (SPEC-0025 rule 6); any other value names the setting."""
+    value = load_config(root)["pr_mode"]
+    if value not in PR_MODES:
+        raise CheckError("pr_mode must be 'strict' or 'flow' (setting: pr_mode in agk.toml)")
+    return value
+
+
+def json_records(path: Path, label: str) -> list[dict]:
+    """The objects in a file written by `gh api`: an array, arrays, pages or one object a line."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise CheckError(f"the {label} file cannot be read") from exc
+    found: list[dict] = []
+    decoder, at = json.JSONDecoder(), 0
+    try:
+        while at < len(text):
+            if text[at].isspace():
+                at += 1
+                continue
+            value, at = decoder.raw_decode(text, at)
+            pending = [value]
+            while pending:
+                item = pending.pop(0)
+                if isinstance(item, list):
+                    pending = item + pending
+                elif isinstance(item, dict):
+                    found.append(item)
+    except ValueError as exc:
+        raise CheckError(f"the {label} file is not JSON") from exc
+    return found
 
 
 def ac_shortfalls(reqs: list[dict], markers: list[dict]) -> list[tuple[str, str]]:

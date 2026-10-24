@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
+  issues: read
 
 jobs:
   governance:
@@ -30,6 +32,31 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+      - name: PR comments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            gh api --paginate --method GET "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" > "$RUNNER_TEMP/comments.json"
+          else
+            echo '[]' > "$RUNNER_TEMP/comments.json"
+          fi
+      - name: PR states and open pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          : > "$RUNNER_TEMP/states.json"
+          echo '[]' > "$RUNNER_TEMP/open-prs.json"
+          if [ "$EVENT" = pull_request ]; then
+            for n in $(python scripts/agk/check_pr_mode.py --list-depends --body "$RUNNER_TEMP/pr-body.md"); do
+              gh api --method GET "repos/${{ github.repository }}/pulls/$n" --jq '{number: .number, merged: .merged}' >> "$RUNNER_TEMP/states.json" || echo "{\"number\": $n, \"merged\": false}" >> "$RUNNER_TEMP/states.json"
+            done
+            gh api --paginate --method GET "repos/${{ github.repository }}/pulls?state=open&per_page=100" --jq ".[] | select(.user.login == \"$PR_AUTHOR\") | {number: .number}" > "$RUNNER_TEMP/open-prs.json"
+          fi
       - name: check_protected_changes
         if: ${{ !cancelled() }}
         run: python scripts/agk/check_protected_changes.py
@@ -39,6 +66,9 @@ jobs:
       - name: check_adrs
         if: ${{ !cancelled() }}
         run: python scripts/agk/check_adrs.py
+      - name: check_numbers
+        if: ${{ !cancelled() }}
+        run: python scripts/agk/check_numbers.py
       - name: check_specs
         if: ${{ !cancelled() }}
         run: python scripts/agk/check_specs.py --body "$RUNNER_TEMP/pr-body.md"
@@ -57,6 +87,17 @@ jobs:
       - name: reviewers --check-codeowners
         if: ${{ !cancelled() }}
         run: python scripts/agk/reviewers.py --check-codeowners
+      - name: check_pr_mode
+        if: ${{ !cancelled() }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python scripts/agk/check_pr_mode.py --body "$RUNNER_TEMP/pr-body.md" --states "$RUNNER_TEMP/states.json" --open "$RUNNER_TEMP/open-prs.json" --number "$PR_NUMBER"
+      - name: check_final_clearance
+        if: ${{ !cancelled() }}
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: python scripts/agk/check_final_clearance.py --comments "$RUNNER_TEMP/comments.json" --head "$HEAD_SHA" --author "$PR_AUTHOR"
       - name: PR body shape
         if: github.event_name == 'pull_request'
         env:

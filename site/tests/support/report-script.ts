@@ -42,12 +42,18 @@ export function writeReportKit(fixture: string, mutate?: (facts: Record<string, 
   }
 }
 
-// The same report in its schema 1 form: the number 1 and no hours_unknown. The tests of schema 1 (the reader's first
+// The same report in its schema 1 form: the number 1 and none of the fields of schemas 2 and 3 (hours_unknown, counts, count,
+// fix_verdicts_unknown). The tests of schema 1 (the reader's first
 // list, the five tiles) take their data from here; the kit's schema 2 goldens and writeReportKit cover schema 2.
 export function writeReport(fixture: string, mutate?: (facts: Record<string, unknown>) => void, tag = ""): Written {
   const kit = writeReportKit(fixture, mutate, tag);
   const document = JSON.parse(kit.report);
   document.schema = 1;
-  for (const item of document.sections.cost) delete item.hours_unknown;
+  delete document.counts;
+  for (const item of document.sections.cost) {
+    delete item.hours_unknown;
+    delete item.fix_verdicts_unknown;
+  }
+  for (const item of document.sections.at_risk) delete item.count;
   return { facts: kit.facts, report: JSON.stringify(document, null, 2) + "\n", document };
 }

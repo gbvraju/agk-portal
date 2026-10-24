@@ -167,7 +167,7 @@ test("REQ-108 AC6: the four parts stand in one grid in the order of the spec, an
 
 test("REQ-108 AC6: an empty part stays in its place and says Nothing this week, in the grid and as tiles", async () => {
   const page = await card("empty");
-  assert.equal((page.match(/<p>Nothing this week\.<\/p>/g) ?? []).length, 4);
+  assert.equal((page.match(/<p>Nothing this week\.<\/p>/g) ?? []).length, 5, "all five parts: a housekeeping total of 0 with no open issue is no longer an item (agk SPEC-0026 rule 6)");
   assert.match(page, /<div class="part time">\s*<h4>Time and review<\/h4>\s*<p>Nothing this week\.<\/p>/);
 });
 

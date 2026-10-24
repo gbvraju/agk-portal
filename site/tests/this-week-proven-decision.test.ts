@@ -199,7 +199,7 @@ test("REQ-105 AC4: an empty list says Nothing this week for the part and no othe
   for (const name of ["empty"]) {
     const { html: page } = await html(name);
     assert.ok(empty(body(page, "Proven")) && empty(body(page, "Needs your decision")), name);
-    assert.equal((page.match(/Nothing this week\./g) ?? []).length, 4, `${name}: Delivered, Proven, Needs your decision and Time and review`);
+    assert.equal((page.match(/Nothing this week\./g) ?? []).length, 5, `${name}: all five parts (At risk too: a housekeeping total of 0 with no open issue is no longer an item, agk SPEC-0026 rule 6)`);
   }
 });
 

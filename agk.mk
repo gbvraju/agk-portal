@@ -9,12 +9,15 @@ agk-governance:
 	$(PY) scripts/agk/check_protected_changes.py
 	$(PY) scripts/agk/check_requirements.py
 	$(PY) scripts/agk/check_adrs.py
+	$(PY) scripts/agk/check_numbers.py
 	$(PY) scripts/agk/check_specs.py
 	$(PY) scripts/agk/check_neutrality.py
 	$(PY) scripts/agk/check_build_state.py
 	$(PY) scripts/agk/check_kit_tests.py
 	$(PY) scripts/agk/reviewers.py --check
 	$(PY) scripts/agk/reviewers.py --check-codeowners
+	$(PY) scripts/agk/check_pr_mode.py
+	$(PY) scripts/agk/check_final_clearance.py
 
 agk-lint:
 	ruff check $(AGK_RUFF_FLAGS) $(wildcard $(shell $(PY) scripts/agk/config.py lint_paths))
