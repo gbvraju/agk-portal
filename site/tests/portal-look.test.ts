@@ -5,7 +5,7 @@
 // recorded GitHub answers and archives in memory, no network.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { SESSION_COOKIE, createApp, createCore, createGithubClient, factsCard, readFacts, sealSession, type Config, type ConfigName } from "../src/core/index.ts";
+import { SESSION_COOKIE, createApp, createCore, createGithubClient, factsCard, readFacts, sealSession, type Config, type ConfigName, type FactsResult } from "../src/core/index.ts";
 import { writeReport } from "./support/report-script.ts";
 import { zip } from "./support/zip.ts";
 
@@ -16,7 +16,7 @@ const SIGNED = "https://blob.example.net/signed/archive?sig=SIGNED_SECRET_VALUE"
 type Doc = any;
 const clone = (doc: Doc): Doc => JSON.parse(JSON.stringify(doc));
 
-async function card(fixture: string, change?: (report: Doc) => void, report = true): Promise<string> {
+async function result(fixture: string, change?: (report: Doc) => void, report = true): Promise<FactsResult> {
   const written = writeReport(fixture);
   const doc = clone(written.document);
   change?.(doc);
@@ -29,16 +29,30 @@ async function card(fixture: string, change?: (report: Doc) => void, report = tr
     [SIGNED]: () => new Response(bytes as BodyInit),
   };
   const github = createGithubClient({ fetch: async (url) => routes[url]?.() ?? new Response("{}", { status: 404 }) });
-  return factsCard("acme/api", await readFacts(github, TOKEN, "acme/api", START));
+  return readFacts(github, TOKEN, "acme/api", START);
+}
+async function card(fixture: string, change?: (report: Doc) => void, report = true): Promise<string> {
+  return factsCard("acme/api", await result(fixture, change, report));
 }
 
 const values: Record<ConfigName, string> = { GITHUB_APP_CLIENT_ID: "Iv1.fixtureclientid", GITHUB_APP_CLIENT_SECRET: "fixture-client-secret-value", SESSION_KEY: KEY, CALLBACK_URL: "https://portal.example/callback" };
 const config: Config = { get: (name) => values[name] };
-// The whole signed-in page around the given cards.
-async function signedIn(cards: string[]): Promise<string> {
-  const app = createApp(createCore({ config, now: () => START }), { projects: async () => cards });
-  const cookie = await sealSession({ token: TOKEN, expiresAt: START + 3_600_000 }, KEY);
+// The signed-in start page for the given projects (the first is acme/api, the next acme/web, ...), at a clock in 2026-W42, so
+// that the goldens of 2026-W41 are for the previous week.
+const NOW = Date.UTC(2026, 9, 14, 12);
+async function signedIn(results: FactsResult[]): Promise<string> {
+  const projects = results.map((r, i) => ({ name: ["acme/api", "acme/web", "acme/app", "acme/lib"][i] as string, result: r }));
+  const app = createApp(createCore({ config, now: () => NOW }), { projects: async () => ({ kind: "ok", notices: [], projects }) });
+  const cookie = await sealSession({ token: TOKEN, expiresAt: NOW + 3_600_000 }, KEY);
   const response = await app(new Request("https://portal.example/", { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }));
+  assert.equal(response.status, 200);
+  return response.text();
+}
+// The page of the project acme/api.
+async function projectPage(found: FactsResult): Promise<string> {
+  const app = createApp(createCore({ config, now: () => NOW }), { project: async () => ({ kind: "found", result: found }) });
+  const cookie = await sealSession({ token: TOKEN, expiresAt: NOW + 3_600_000 }, KEY);
+  const response = await app(new Request("https://portal.example/p/acme/api", { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }));
   assert.equal(response.status, 200);
   return response.text();
 }
@@ -74,7 +88,7 @@ function body(page: string, title: string): string {
 const lis = (b: string): string[] => [...b.matchAll(/<li[^>]*>(.*?)<\/li>/gs)].map((m) => m[1] as string);
 
 test("REQ-108 AC1: no page carries a style attribute, and the head names the one stylesheet and nothing else", async () => {
-  for (const page of [await signedIn([await card("kinds")]), await signedIn([]), await signedOut()]) {
+  for (const page of [await signedIn([await result("kinds")]), await projectPage(await result("kinds")), await signedIn([]), await signedOut()]) {
     assert.doesNotMatch(page, /\sstyle\s*=/i);
     assert.deepEqual([...page.matchAll(/<link[^>]*>/g)].map((m) => m[0]), ['<link rel="stylesheet" href="/style.css">']);
     assert.doesNotMatch(page, /<style\b|<script\b|\son[a-z]+\s*=/i);
@@ -82,7 +96,7 @@ test("REQ-108 AC1: no page carries a style attribute, and the head names the one
 });
 
 test("REQ-108 AC7: the logo is the text AGK, there is no image, and an icon is inline SVG marked aria-hidden", async () => {
-  for (const page of [await signedIn([await card("kinds")]), await signedOut()]) {
+  for (const page of [await signedIn([await result("kinds")]), await projectPage(await result("kinds")), await signedOut()]) {
     assert.match(page, /<header class="top"><span class="logo">AGK<\/span><\/header>/);
     assert.doesNotMatch(page, /<img\b|<picture\b|<source\b|<video\b|<audio\b|<object\b|<embed\b|<iframe\b/i);
     for (const svg of page.matchAll(/<svg\b[^>]*>/g)) assert.match(svg[0], /aria-hidden="true"/);
@@ -90,7 +104,7 @@ test("REQ-108 AC7: the logo is the text AGK, there is no image, and an icon is i
 });
 
 test("REQ-108 AC8: the signed-in page is titled Your projects, with the title as its heading, and the sign-out button stays", async () => {
-  const page = await signedIn([await card("kinds")]);
+  const page = await signedIn([await result("kinds")]);
   assert.match(page, /<title>Your projects<\/title>/);
   assert.match(page, /<h1>Your projects<\/h1>/);
   assert.match(page, /<form method="post" action="\/signout"><button type="submit">Sign out<\/button><\/form>/);
@@ -140,10 +154,10 @@ test("REQ-108 AC4: the badge never changes the sentence: the line without its ba
 });
 
 test("REQ-108 AC5: only native controls are used: links, a button, details and summary; no tabindex, no role, no script", async () => {
-  const page = await signedIn([await card("kinds", (r) => {
+  const page = await projectPage(await result("kinds", (r) => {
     r.sections.needs_you[2].items = Array.from({ length: 6 }, (_, i) => ({ kind: "question", id: `Q-X-${i}`, asked_in: "docs/a.md", links: [] }));
     r.sections.needs_you[2].count = 6;
-  })]);
+  }));
   assert.doesNotMatch(page, /\stabindex\s*=|\srole\s*=|<script\b|\sonclick\s*=/i);
   const tags = new Set([...page.matchAll(/<([a-z][a-z0-9]*)/g)].map((m) => m[1]));
   for (const interactive of ["input", "select", "textarea", "label", "dialog", "menu"]) assert.ok(!tags.has(interactive), `${interactive} is not used`);

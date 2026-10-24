@@ -61,7 +61,7 @@ function harness(key = KEY_A, answer: unknown = { access_token: TOKEN, expires_i
     github,
     projects: async (token) => {
       tokensSeen.push(token);
-      return [];
+      return { kind: "ok", notices: [], projects: [] };
     },
   });
   return { app, calls, tokensSeen, clock };

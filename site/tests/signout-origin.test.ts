@@ -21,7 +21,7 @@ function app(callbackUrl = "https://portal.example/callback") {
   const handle = createApp(createCore({ config, now: () => START }), {
     projects: async (token) => {
       calls.push(token);
-      return [];
+      return { kind: "ok", notices: [], projects: [] };
     },
   });
   return { handle, calls };

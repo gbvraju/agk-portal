@@ -229,7 +229,7 @@ test("REQ-109 AC5: a name that is not of the shape makes no read of GitHub, and 
   const get = (path: string): Promise<Response> => app(new Request(`https://portal.example${path}`, { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }));
   assert.equal((await get("/p/acme/a%20b")).status, 404);
   assert.equal((await get("/p/a")).status, 404);
-  assert.deepEqual(calls, [], "no read of GitHub for a name of a bad shape");
+  assert.equal(calls.length, 0, "no read of GitHub for a name of a bad shape");
   assert.equal((await get("/p/acme/secret")).status, 404);
   assert.ok(calls.length > 0 && calls.every((c) => c.startsWith("/user/installations")), "only the person's list was read");
   assert.ok(!calls.some((c) => c.includes("acme/secret")), "nothing about the project not in the list");
@@ -297,7 +297,7 @@ test("REQ-109 AC7: the reads per project are counted and recorded, and one faili
   assert.deepEqual(names(g[1] as { lines: string[] }), ["acme/web"]);
   assert.match(g[1]?.lines[0] as string, /Not known yet: GitHub answered 500\./);
   const own = (repo: string): number => calls.filter((c) => c.includes(`/repos/${repo}/`)).length;
-  const signed = (repo: string): number => calls.filter((c) => c.includes(`/signed/${repo}`)).length;
+  const signed = (repo: string): number => calls.filter((c) => c.includes(`/signed/${repo.split("/")[1]}?`)).length;
   const reads = (repo: string): number => own(repo) + signed(repo);
   assert.equal(reads("acme/api"), 3, "the artifact listing, the download address and the signed download");
   assert.equal(reads("acme/app"), 3);
@@ -306,7 +306,7 @@ test("REQ-109 AC7: the reads per project are counted and recorded, and one faili
   assert.match(doc, /GitHub reads per project: 3 /);
   assert.match(doc, /GitHub reads for the person's list: 2 /);
   assert.match(doc, /3 projects: 11 reads/);
-  assert.match(doc, /time to first byte on staging: not recorded yet/);
+  assert.match(doc, /time to first byte on staging: not recorded yet/i);
   assert.match(doc, /No claim about 50 projects/);
 });
 

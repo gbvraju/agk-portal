@@ -48,11 +48,22 @@ function harness(routes: Routes) {
   return { app, calls };
 }
 
-async function home(app: (r: Request) => Promise<Response>): Promise<string> {
+async function get(app: (r: Request) => Promise<Response>, path: string): Promise<string> {
   const cookie = await sealSession({ token: TOKEN, expiresAt: START + 3_600_000 }, KEY);
-  const response = await app(new Request("https://portal.example/", { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }));
-  assert.equal(response.status, 200);
+  const response = await app(new Request(`https://portal.example${path}`, { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }));
+  assert.equal(response.status, 200, "the page does not fail");
   return response.text();
+}
+
+// The start page alone (the list and its lines).
+const start = (app: (r: Request) => Promise<Response>): Promise<string> => get(app, "/");
+
+// The start page and the page of every project it links: where the cards of the projects are shown (SPEC-0009 rule 5).
+async function home(app: (r: Request) => Promise<Response>): Promise<string> {
+  const first = await start(app);
+  const pages = [];
+  for (const m of first.matchAll(/href="(\/p\/[^"]+)"/g)) pages.push(await get(app, m[1] as string));
+  return [first, ...pages].join("\n");
 }
 
 const okRoutes: Routes = {
@@ -65,8 +76,8 @@ const okRoutes: Routes = {
 
 test("REQ-101 AC6: the page lists exactly the repositories GitHub returns for the person, once each, in order, linked, never counted", async () => {
   const { app, calls } = harness(okRoutes);
-  const html = await home(app);
-  const names = [...html.matchAll(/<h2><a href="https:\/\/github\.com\/([^"]+)">\1<\/a><\/h2>/g)].map((m) => m[1]);
+  const html = await start(app);
+  const names = [...html.matchAll(/<a href="\/p\/([^"]+)">\1<\/a>/g)].map((m) => m[1]);
   assert.deepEqual(names, ["acme/api", "acme/web", "beta-co/app"], "deduplicated across installations and sorted");
   assert.ok(!html.includes("acme/secret"), "a repository the person cannot read is never named");
   assert.ok(!/\b\d+ (repositories|projects|installations)\b/i.test(html) && !html.includes("total_count"), "nothing is counted");

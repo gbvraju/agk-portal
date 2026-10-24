@@ -58,11 +58,22 @@ function harness(routes: Routes) {
   return { app, github, calls };
 }
 
-async function home(app: (r: Request) => Promise<Response>): Promise<string> {
+async function get(app: (r: Request) => Promise<Response>, path: string): Promise<string> {
   const cookie = await sealSession({ token: TOKEN, expiresAt: START + 3_600_000 }, KEY);
-  const response = await app(new Request("https://portal.example/", { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }));
+  const response = await app(new Request(`https://portal.example${path}`, { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }));
   assert.equal(response.status, 200, "the page does not fail");
   return response.text();
+}
+
+// The start page alone (the list and its lines).
+const start = (app: (r: Request) => Promise<Response>): Promise<string> => get(app, "/");
+
+// The start page and the page of every project it links: where the cards of the projects are shown (SPEC-0009 rule 5).
+async function home(app: (r: Request) => Promise<Response>): Promise<string> {
+  const first = await start(app);
+  const pages = [];
+  for (const m of first.matchAll(/href="(\/p\/[^"]+)"/g)) pages.push(await get(app, m[1] as string));
+  return [first, ...pages].join("\n");
 }
 
 const FACTS = { schema: 1, kit_version: "0.32.0", repo: "acme/api", unknown_key_kept: { a: [1, 2, 3] }, value: "unknown" };
@@ -268,7 +279,7 @@ test("REQ-101 AC5: no failure shows a signed address, a token or an error detail
   };
   const html = await home(harness(routes).app);
   for (const secret of [SIGNED, "SIGNED_SECRET_VALUE", "blob.example.net", TOKEN, "boom", "network"]) assert.ok(!html.includes(secret), secret);
-  assert.equal((html.match(/Not known yet: /g) ?? []).length, 3, "each of the three repositories has its own card");
+  assert.equal((html.match(/Not known yet: /g) ?? []).length, 6, "each of the three repositories has its own line and its own card");
 });
 
 test("REQ-101 AC6: a repository the person cannot read is never requested, listed, named or counted", async () => {
