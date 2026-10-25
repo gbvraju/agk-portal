@@ -1,6 +1,6 @@
 # ADR-0033: Add REQ-110: The cockpit shows what waits for a person and opens it on GitHub
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-25
 - Deciders: maintainers
 - Related: SPEC-0010

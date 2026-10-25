@@ -1,6 +1,6 @@
 # SPEC-0010: A person sees what waits for them and opens it on GitHub
 
-- Status: Draft
+- Status: Approved
 - Owner: maintainers
 - Requirements: REQ-110
 
