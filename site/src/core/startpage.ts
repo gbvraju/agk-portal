@@ -58,7 +58,7 @@ function place(name: string, result: FactsResult, now: number): Placed {
   if (result.week !== isoWeekLabel(now) && result.week !== isoWeekLabel(now - WEEK_MS)) return knownYet(name, result.week, staleReason(result.week));
   const report = result.report.document;
   const counts = (report as { counts?: Record<string, unknown> }).counts;
-  if (report.schema !== 3 || counts === undefined) return knownYet(name, result.week, NO_COUNTS_REASON);
+  if (report.schema < 3 || counts === undefined) return knownYet(name, result.week, NO_COUNTS_REASON);
   const totals = report.sections.cost.find((item) => item.kind === "week-totals");
   const attention = [counts["needs_you"], counts["at_risk"]].some((c) => c === "unknown" || (typeof c === "number" && c > 0));
   const line =

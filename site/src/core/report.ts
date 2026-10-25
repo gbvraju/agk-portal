@@ -18,7 +18,7 @@ export interface ReportGroup {
   items: ReportItem[];
 }
 export interface ReportDocument {
-  schema: 1 | 2 | 3;
+  schema: 1 | 2 | 3 | 4;
   week: string;
   opening: { first: string; last: string; as_of: string };
   sections: { delivered: ReportItem[]; proven: ReportItem[]; needs_you: ReportGroup[]; at_risk: ReportItem[]; cost: ReportItem[] };
@@ -85,15 +85,21 @@ const proven = kinds({
   "planned-not-counted": { count: int },
   ...UNKNOWN,
 });
-const needsItem = kinds({
-  "draft-spec": { id: str, title: str },
-  "proposed-adr": { id: str, title: str },
-  question: { id: str, asked_in: str },
-  "pull-request-no-verdict": { number: int, title: str, days: int },
-  "overdue-residual": { due: date, text: str },
-  "unspecced-requirement": { id: str, title: str },
-  ...UNKNOWN,
+// The Needs your decision items of each schema. Schema 4 (agk #184, REQ-037 part c) adds the kind `pull-request-ready` with
+// exactly number, title and links, in the group `ready`.
+const needsItemOf = (extra: Record<string, Record<string, Check>>): Check =>
+  kinds({
+    ...extra,
+    "draft-spec": { id: str, title: str },
+    "proposed-adr": { id: str, title: str },
+    question: { id: str, asked_in: str },
+    "pull-request-no-verdict": { number: int, title: str, days: int },
+    "overdue-residual": { due: date, text: str },
+    "unspecced-requirement": { id: str, title: str },
+    ...UNKNOWN,
 });
+const GROUPS = ["spec", "adr", "question", "pull-request", "residual", "requirement"] as const;
+const needsOf = (item: Check, groups: readonly string[]): Check => shape({ group: one(...groups), count: intOrUnknown, items: list(item) });
 // The At risk list of each schema. Schema 3 (agk SPEC-0026, kit 0.50.0) adds `count`, an integer from 0, to the four grouped kinds.
 const atRiskOf = (grouped: Record<string, Check>): Check =>
   kinds({
@@ -129,7 +135,7 @@ const notices: Check = (() => {
 
 const countOrUnknown: Check = either((v) => int(v) && (v as number) >= 0, one("unknown"));
 // The number of each section and the lists of the schema; `counts` (schema 3) has exactly the four keys.
-const documentOf = (schema: 1 | 2 | 3, lists: { atRisk: Check; cost: Check }, counts: Record<string, Check> = {}): Check =>
+const documentOf = (schema: 1 | 2 | 3 | 4, lists: { needs: Check; atRisk: Check; cost: Check }, counts: Record<string, Check> = {}): Check =>
   shape({
     schema: one(schema),
     ...counts,
@@ -138,21 +144,36 @@ const documentOf = (schema: 1 | 2 | 3, lists: { atRisk: Check; cost: Check }, co
     sections: shape({
       delivered: list(delivered),
       proven: list(proven),
-      needs_you: list(shape({ group: one("spec", "adr", "question", "pull-request", "residual", "requirement"), count: intOrUnknown, items: list(needsItem) })),
+      needs_you: list(lists.needs),
       at_risk: list(lists.atRisk),
       cost: list(lists.cost),
     }),
     notices: list(notices),
   });
 // Each schema has its own closed list; any other number is not read.
+const needs1 = needsOf(needsItemOf({}), GROUPS);
+const needs4 = needsOf(needsItemOf({ "pull-request-ready": { number: int, title: str } }), ["ready", ...GROUPS]);
 const countsOf = { counts: shape({ delivered: countOrUnknown, proven: countOrUnknown, needs_you: countOrUnknown, at_risk: countOrUnknown }) };
 const documents: Record<number, Check> = {
-  1: documentOf(1, { atRisk: atRiskOf({}), cost: costOf({}) }),
-  2: documentOf(2, { atRisk: atRiskOf({}), cost: costOf({ hours_unknown: count }) }),
-  3: documentOf(3, { atRisk: atRiskOf({ count }), cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }) }, countsOf),
+  1: documentOf(1, { needs: needs1, atRisk: atRiskOf({}), cost: costOf({}) }),
+  2: documentOf(2, { needs: needs1, atRisk: atRiskOf({}), cost: costOf({ hours_unknown: count }) }),
+  3: documentOf(3, { needs: needs1, atRisk: atRiskOf({ count }), cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }) }, countsOf),
+  4: documentOf(4, { needs: needs4, atRisk: atRiskOf({ count }), cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }) }, countsOf),
 };
 
 // The document, or undefined when the text is not JSON or departs from the closed list.
+// The schema number of a text that is a JSON object with an integer `schema` this page does not read: said on the card, not
+// shown as an empty week. Anything else that departs from the lists is "could not be read".
+export function hasUnknownSchema(text: string): boolean {
+  try {
+    const value: unknown = JSON.parse(text);
+    const schema = isObject(value) ? value["schema"] : undefined;
+    return typeof schema === "number" && Number.isInteger(schema) && !Object.hasOwn(documents, schema);
+  } catch {
+    return false;
+  }
+}
+
 export function parseReport(text: string): ReportDocument | undefined {
   let value: unknown;
   try {

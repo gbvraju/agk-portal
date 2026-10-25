@@ -7,6 +7,7 @@ import { escapeText } from "./responses.ts";
 export const DIRTY_NOTICE_PHRASE = "These numbers were made from a copy with unsaved changes; treat them with care.";
 export const NO_REPORT_REASON = "the artifact has no report (made before kit 0.39.0)";
 export const REPORT_UNREADABLE_REASON = "the report could not be read";
+export const UNKNOWN_SCHEMA_REASON = "the report has a schema this page does not read";
 export const UNKNOWN_REPOSITORY_REASON = "its repository is not known";
 
 export function openingPhrase(report: Pick<ReportDocument, "week" | "opening">): string {
@@ -117,6 +118,7 @@ function provenLine(item: ReportItem): string {
 }
 
 const HEADINGS: Record<string, [string, string]> = {
+  ready: ["Ready to merge", "Ready to merge"],
   spec: ["Specification waiting for approval", "Specifications waiting for approval"],
   adr: ["Decision waiting", "Decisions waiting"],
   question: ["Question waiting", "Questions waiting"],
@@ -128,6 +130,9 @@ const HEADINGS: Record<string, [string, string]> = {
 function needsLine(item: ReportItem): string {
   const id = (): string => reference(item, String(item["id"]));
   switch (item.kind) {
+    case "pull-request-ready":
+      // The one line that shows the title of a pull request (the brief of issue #58, ADR-0030): its number and its title, linked.
+      return anchor(item, `PR #${item["number"]} "${item["title"]}"`);
     case "draft-spec":
       return `A specification waits for approval. ${id()}`;
     case "proposed-adr":

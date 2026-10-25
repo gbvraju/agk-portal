@@ -87,7 +87,6 @@ test("REQ-105 AC8: schema 2 needs hours_unknown on the week-totals item, an inte
     ["an extra field on the totals", (d) => (totals(d).extra = 1)],
     ["the field on a per-change cost item", (d) => (d.sections.cost[0].hours_unknown = 0)],
     ["the schema 3", (d) => (d.schema = 3)],
-    ["the schema 0", (d) => (d.schema = 0)],
     ["the schema as text", (d) => (d.schema = "2")],
     ["the schema missing", (d) => delete d.schema],
     ["schema 2 with a schema 1 totals item (no field)", (d) => delete totals(d).hours_unknown],
