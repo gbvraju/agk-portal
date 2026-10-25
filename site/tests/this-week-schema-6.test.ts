@@ -302,3 +302,14 @@ test("REQ-105 AC5: the goldens place Flow and corrections as the data holds them
     assert.ok(tiles(page).includes(tile), `${name}: ${tile}`);
   }
 });
+
+test("REQ-105 AC2: the golden of facts-ok shows its requirements without a brief by their identifiers and nothing else of the kind", { skip: !existsSync(dir6) }, async () => {
+  const doc = golden("facts-ok");
+  const item = risk(doc, "requirements-without-brief");
+  const ids: string[] = item.entries.map((e: Doc) => e.id);
+  const lines = part(await cardOf(factsOf("facts-ok"), doc), "At risk").filter((l) => /no open brief/.test(l)).map(textOf);
+  assert.equal(lines.length, 1);
+  for (const id of ids) assert.ok((lines[0] as string).includes(id), id);
+  assert.match(lines[0] as string, ids.length === 1 ? /has no open brief\.$/ : /have no open brief\.$/);
+});
+
