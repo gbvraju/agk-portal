@@ -2,8 +2,8 @@
 // keep the unexpired `agk-facts-<week>` ones, take the latest week and, within it, the newest, download it through the
 // redirect, read `facts.json` and accept schema 1 only. Every failure is local to the repository and says why.
 import type { GithubClient } from "./github.ts";
-import { parseReport, type ReportDocument } from "./report.ts";
-import { NO_REPORT_REASON, REPORT_UNREADABLE_REASON } from "./thisweek.ts";
+import { hasUnknownSchema, parseReport, type ReportDocument } from "./report.ts";
+import { NO_REPORT_REASON, REPORT_UNREADABLE_REASON, UNKNOWN_SCHEMA_REASON } from "./thisweek.ts";
 import { MAX_FACTS_BYTES, readArchive } from "./zip.ts";
 
 export const NO_ARTIFACT_REASON = "no facts artifact exists for its latest week";
@@ -152,6 +152,7 @@ function reportOf(content: Uint8Array | undefined, week: string): ReportOutcome 
   } catch {
     return { kind: "none", reason: REPORT_UNREADABLE_REASON };
   }
+  if (hasUnknownSchema(text)) return { kind: "none", reason: UNKNOWN_SCHEMA_REASON };
   const document = parseReport(text);
   return document !== undefined && document.week === week ? { kind: "report", document } : { kind: "none", reason: REPORT_UNREADABLE_REASON };
 }

@@ -146,7 +146,8 @@ test("REQ-109 AC3: a project with no readable report, a report without counts or
   const facts = read(resolve(fixtureDir, "kinds.facts.json"));
   const unreadableFacts = await resultOf("not json", undefined, "2026-W41");
   const noReport = await resultOf(facts, undefined, "2026-W41");
-  const badReport = await resultOf(facts, JSON.stringify({ schema: 99 }), "2026-W41");
+  const badReport = await resultOf(facts, JSON.stringify({ week: "2026-W41" }), "2026-W41");
+  const newerSchema = await resultOf(facts, JSON.stringify({ schema: 99 }), "2026-W41");
   const schema2 = await resultOf(facts, read(resolve(dir2, "kinds.report.json")), "2026-W41");
   const w = writeReport("kinds");
   const schema1 = await resultOf(w.facts, w.report, "2026-W41");
@@ -156,6 +157,7 @@ test("REQ-109 AC3: a project with no readable report, a report without counts or
     ["unreadable", unreadableFacts, WEEK42, "acme/api Not known yet: the file is not valid JSON."],
     ["noreport", noReport, WEEK42, "acme/api Week 2026-W41 Not known yet: the artifact has no report (made before kit 0.39.0)."],
     ["badreport", badReport, WEEK42, "acme/api Week 2026-W41 Not known yet: the report could not be read."],
+    ["newerschema", newerSchema, WEEK42, "acme/api Week 2026-W41 Not known yet: the report has a schema this page does not read."],
     ["schema2", schema2, WEEK42, "acme/api Week 2026-W41 Not known yet: the report has no counts (made by an older kit)."],
     ["schema1", schema1, WEEK42, "acme/api Week 2026-W41 Not known yet: the report has no counts (made by an older kit)."],
     ["stale", stale, WEEK43, "acme/api Week 2026-W41 Not known yet: the latest report is for week 2026-W41."],

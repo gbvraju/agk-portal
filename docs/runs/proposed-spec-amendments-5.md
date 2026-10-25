@@ -75,3 +75,24 @@ SPEC-0009 is `docs/specs/0009-a-person-with-many-projects-starts-from-one-line-p
 
 1. Rule 1: after "and a link to `/p/{owner}/{repo}`." the new sentence is added: "Each of the three counts is a small pill in the status colours of SPEC-0008 (delivered: done; needs you: decide; at risk: risk; a count that is not known yet: none); merged and hours are plain text; a count of 0 stays plain, muted and hidden on a phone (rule 4), and no new phrase is added: the words stay "delivered", "needs you" and "at risk"."
 2. Rule 6: "with one native text input `q` and a button "Find a project" keeps" becomes "with a visible label "Find a project" tied (`for`) to one native text input `q`, the label being the input's one accessible name, and a button "Find", keeps", and the list of the page's fixed phrases gains "Find".
+
+## Amendment 13 — SPEC-0005 rules 5, 10 and 13, the intro, the Tests and the Residual: report.json schema 4 and the group Ready to merge
+
+**Reason.** agk #184 (REQ-037 part c) makes the `schema` of `report.json` 4: `needs_you` gains the group `ready` ("Ready to merge"), first in the data, with the item kind `pull-request-ready` (exactly `number`, `title` and `links`); no other field changes. The page reads schemas 1 to 3 only, so the first report written after #184 would read "not known yet". The brief of issue #58 asks to show each item as `PR #<n> "<title>"` linked to its pull request, which is the one line where SPEC-0005 rule 10 ("no title of a pull request ... is shown as a sentence") is departed from, and to say on the page when a schema is not one the page reads instead of showing an empty week.
+
+**Old text and new text.** (the words that change; the rest of each paragraph is as it is)
+
+1. The introduction: "(...; schema 3 from kit 0.50.0, agk SPEC-0026)" gains "; schema 4 from agk #184, REQ-037 part c, the group `ready`".
+2. Rule 5: the groups gain `ready` (schema 4 only, first in the data) and the items gain `pull-request-ready` (schema 4 only).
+3. Rule 13: "`schema` the number 1, 2 or 3 (...)" becomes "the number 1, 2, 3 or 4 (schema 4 adds the group `ready` and the kind `pull-request-ready` with exactly `number`, `title` and `links`, and nothing else; ...)" and the refusal reads "whose schema is not 1, 2, 3 or 4". A report whose `schema` is an integer that is not 1 to 4 reads, on a card without This week, "Week {label}: not known yet: the report has a schema this page does not read."; any other departure still reads "the report could not be read".
+4. Rule 10: the group headings row gains "Ready to merge ({n})" (schema 4, first); a new row gives the ready line `PR #{n} "{title}"`, the whole text linked to the pull request, and says an unreadable clearance is the existing unknown line; a new row gives the card with an unknown schema; and the sentence "no title of a pull request ... is shown as a sentence" gains "; the one exception is the line of a pull request that is ready to merge (the brief of issue #58, ADR-0030), which shows its number and its title".
+5. Tests: "a schema other than 1, 2 or 3" becomes "1, 2, 3 or 4" and a line for rules 5, 10 and 13 is added (REQ-105 AC2, AC5 and AC8).
+6. Residual: "schemas 1, 2 and 3 (agk SPEC-0022, SPEC-0024 and SPEC-0026)" becomes "schemas 1 to 4 (agk SPEC-0022, SPEC-0024, SPEC-0026 and #184)".
+
+## Amendment 14 — SPEC-0009 rules 1 to 3: schema 3 or later
+
+SPEC-0009 is `docs/specs/0009-a-person-with-many-projects-starts-from-one-line-per-project.md`, applied by ADR-0030.
+
+**Reason.** The start page placed a project by its counts only for a report "of schema 3"; a report of schema 4 has the same `counts`, so a project whose latest report is schema 4 must be placed by them and not read "the report has no counts". The reason of a schema that is not read is the card's (rule 3, "the card's existing reasons").
+
+**Old text and new text.** Rule 1: "(schema 3; a count of `"unknown"` reads "not known yet")" becomes "(schema 3 or later; ...)". Rule 2: "is of schema 3 and is for" becomes "is of schema 3 or later and is for". Rule 3: "or its report is of schema 1 or 2" gains "(a report of schema 3 or later has counts)".

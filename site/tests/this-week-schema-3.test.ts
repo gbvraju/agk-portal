@@ -95,7 +95,6 @@ test("REQ-105 AC8: schema 3 needs counts, count on the four grouped kinds and fi
     ["an extra field on the totals", (d) => (totals(d).extra = 1)],
     ["count on a kind that is not grouped", (d) => (d.sections.at_risk[0].count = 1)],
     ["count on a per-change cost item", (d) => (d.sections.cost[0].count = 1)],
-    ["the schema 4", (d) => (d.schema = 4)],
     ["the schema as text", (d) => (d.schema = "3")],
     ["schema 3 with schema 2 content", (d) => {
       delete d.counts;

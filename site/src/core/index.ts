@@ -18,7 +18,7 @@ export {
 export type { FactsResult, ReportOutcome } from "./facts.ts";
 export { parseReport } from "./report.ts";
 export type { ReportDocument, ReportItem } from "./report.ts";
-export { DIRTY_NOTICE_PHRASE, NO_REPORT_REASON, REPORT_UNREADABLE_REASON, UNKNOWN_REPOSITORY_REASON, openingPhrase, thisWeekSection } from "./thisweek.ts";
+export { DIRTY_NOTICE_PHRASE, NO_REPORT_REASON, REPORT_UNREADABLE_REASON, UNKNOWN_REPOSITORY_REASON, UNKNOWN_SCHEMA_REASON, openingPhrase, thisWeekSection } from "./thisweek.ts";
 export { PROJECTS_UNREADABLE_PHRASE, factsCard, findProject, listProjectCards, listProjects, listReadableRepositories, permissionsRefusedLine } from "./projects.ts";
 export type { Listing, ProjectList, ProjectLookup } from "./projects.ts";
 export { MAX_QUERY, NO_COUNTS_REASON, NO_MATCH_PHRASE, isoWeekLabel, staleReason } from "./startpage.ts";
