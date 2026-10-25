@@ -26,6 +26,7 @@ DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
 STAMP = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|\+00:00)$")
 WEEK = re.compile(r"^(\d{4})-W(\d{2})$")
 KINDS = (
+    ("ready", "Ready to merge"),
     ("spec", "Draft specs"),
     ("adr", "Proposed ADRs"),
     ("question", "Questions waiting"),
@@ -36,7 +37,7 @@ KINDS = (
 REQUIRED = (
     "config requirements markers specs adrs residuals questions pull_requests issues drift"
 ).split()
-SECTIONS = ("Delivered", "Proven", "Needs you", "At risk", "Cost")
+SECTIONS = ("Delivered", "Proven", "Needs you", "At risk", "Cost", "Flow")
 # A week is busy when more than this many pull requests merged in it (SPEC-0015 rule 1).
 BUSY_WEEK = 10
 NOTHING = "nothing this week"
@@ -166,7 +167,7 @@ def unknown_line(what: str, link: str) -> str:
 # An item is `{"kind", <its fields>, "links"}`. The fields of a kind are fixed here; a kind or a
 # field that is not in the table does not exist (a new one is a new schema number).
 
-REPORT_SCHEMA = 3
+REPORT_SCHEMA = 6
 ITEM_KINDS = {
     "requirement-done": ("id", "title", "criteria", "became_done"),
     "pull-request-merged": ("number", "title", "merged_on"),
@@ -174,7 +175,7 @@ ITEM_KINDS = {
     "requirement-proven": ("id", "last_change"),
     "requirement-not-proven": ("id", "reasons"),
     "planned-not-counted": ("count",),
-    "pull-request-cost": ("number", "title", "hours", "fix_verdicts"),
+    "pull-request-cost": ("number", "title", "hours", "fix_verdicts", "usage"),
     "week-totals": (
         "merged",
         "hours",
@@ -184,7 +185,24 @@ ITEM_KINDS = {
         "behaviour_unchanged",
         "estimate",
         "busy",
+        "usage",
+        "usage_reported",
+        "corrections",
     ),
+    "flow-figures": (
+        "open_builders",
+        "max_builders",
+        "taken_to_pull_request",
+        "to_first_verdict",
+        "verdict_to_cleared",
+        "cleared_to_merge",
+        "conflicts",
+        "renumbers",
+        "retakes",
+    ),
+    "briefs-idle": ("entries", "count"),
+    "requirements-without-brief": ("entries", "count"),
+    "pull-requests-stalled": ("entries", "count"),
     "unknown": ("what",),
     "facts-commit": ("commit",),
     "working-tree-modified": ("dirty",),
@@ -194,6 +212,7 @@ ITEM_KINDS = {
     "draft-spec": ("id", "title"),
     "proposed-adr": ("id", "title"),
     "question": ("id", "asked_in"),
+    "pull-request-ready": ("number", "title"),
     "pull-request-no-verdict": ("number", "title", "days"),
     "overdue-residual": ("due", "text"),
     "unspecced-requirement": ("id", "title"),
@@ -205,7 +224,7 @@ ITEM_KINDS = {
     "drift-audit": ("total", "counts", "open_issue"),
 }
 OPTIONAL_FIELDS = {"metrics-issue": ("number", "title"), "drift-audit-issue": ("number", "title")}
-SECTION_KEYS = ("delivered", "proven", "needs_you", "at_risk", "cost")
+SECTION_KEYS = ("delivered", "proven", "needs_you", "at_risk", "cost", "flow")
 
 
 def link(to: str, url: str) -> dict:
@@ -332,6 +351,32 @@ def residual_items(doc: dict, links: Links, today: date) -> list[dict]:
     ]
 
 
+def ready_items(doc: dict, links: Links) -> list[dict]:
+    """One item for each open pull request whose head is cleared (SPEC-0030 rule 8); an open one
+    whose clearance cannot be read is not listed and adds one `unknown` item (SPEC-0026 rule 5)."""
+    pulls = doc["pull_requests"]
+    if not is_list(pulls):
+        return []  # the pull-request group already says that the pull requests are unknown
+    opened = sorted((p for p in pulls if p.get("state") == "open"), key=lambda p: p["number"])
+    found = [
+        item(
+            "pull-request-ready",
+            [link("pull-request", links.pull(p["number"]))],
+            number=p["number"],
+            title=p["title"],
+        )
+        for p in opened
+        if p.get("head_cleared") == "yes"
+    ]
+    numbers = [p["number"] for p in opened if p.get("verdicts") == UNKNOWN]
+    if numbers:
+        what = "the clearance of " + plural(len(numbers), "open pull request", "open pull requests")
+        found.append(
+            item("unknown", [link("pull-request", links.pull(n)) for n in numbers], what=what)
+        )
+    return found
+
+
 def requirement_items(doc: dict, links: Links) -> list[dict]:
     if not is_list(doc["requirements"]):
         return [unknown_item("requirements", "file", links.file("docs/requirements.md"))]
@@ -355,6 +400,7 @@ def inbox(doc: dict, links: Links, today: date) -> list[dict]:
     """The groups of what waits for a person, for the kinds that have an item, in the order of
     the table: `{"group", "count", "items"}` (the count is `unknown` for an unknown item)."""
     by_kind = {
+        "ready": ready_items(doc, links),
         "spec": spec_items(doc, links),
         "adr": adr_items(doc, links),
         "question": question_items(doc, links),
@@ -609,8 +655,9 @@ def grouped(rows: list[tuple[str, int, str, dict]], links: Links) -> list[dict]:
     return items
 
 
-TITLED = ("pull-requests-open-long", "pull-requests-sent-back")
+TITLED = ("pull-requests-open-long", "pull-requests-sent-back", "pull-requests-stalled")
 GROUPED = {
+    "pull-requests-stalled": "are stalled on their builders",
     "pull-requests-open-long": "have been open",
     "pull-requests-sent-back": "were sent back",
     "pull-requests-merged-no-verdict": "were merged with no verdict",
@@ -669,6 +716,59 @@ def at_risk(doc: dict, links: Links, today: date, start: date, end: date) -> lis
             if state:
                 late.append((f"pull-requests-merged-{state}", p["number"], p["title"], {}))
         items += grouped(late, links)
+    return items + flow_risks(doc, links, today)
+
+
+def flow_risks(doc: dict, links: Links, today: date) -> list[dict]:
+    """The At risk lines of the flow: pull requests stalled on their builders (SPEC-0033 rule 5),
+    open briefs with no pull request for 7 days and requirements no open brief advances
+    (SPEC-0034 rule 10). What cannot be read is one `unknown` item, never a missing line."""
+    pulls, flow = doc["pull_requests"], doc.get("flow")
+    if not is_list(pulls):
+        return []
+    items: list[dict] = []
+    ordered = sorted(pulls, key=lambda p: p["number"])
+    stalled = [
+        ("pull-requests-stalled", p["number"], p["title"], {})
+        for p in ordered
+        if p.get("stalled") is True
+    ]
+    items += grouped(stalled, links)
+    if any(p.get("stalled") == UNKNOWN for p in ordered):
+        items.append(unknown_item("stalled pull requests", "search", f"{links.repo}/pulls"))
+    briefs = flow.get("briefs", UNKNOWN) if isinstance(flow, dict) else UNKNOWN
+    if not is_list(briefs):
+        return items + [
+            unknown_item("open briefs", "search", f"{links.repo}/issues?q=label%3Aagk-brief")
+        ]
+    named = {p.get("brief") for p in ordered}
+    idle = []
+    for b in sorted(briefs, key=lambda b: b["number"]):
+        day = day_of(b.get("created_at"))
+        if (
+            day is not None
+            and (today - day).days > OLD_PULL_REQUEST_DAYS
+            and b["number"] not in named
+        ):
+            idle.append({"number": b["number"], "title": b["title"], "days": (today - day).days})
+    if idle:
+        where = [link("issue", links.issue(e["number"])) for e in idle]
+        items.append(item("briefs-idle", where, entries=idle, count=len(idle)))
+    advanced = [b["advances"] for b in briefs]
+    requirements = doc["requirements"]
+    if UNKNOWN in advanced or not is_list(requirements):
+        return items + [
+            unknown_item("requirements without a brief", "file", links.file("docs/requirements.md"))
+        ]
+    named_reqs = {r for a in advanced if is_list(a) for r in a}
+    lone = [
+        {"id": r["id"]}
+        for r in requirements
+        if r.get("status") != "done" and r["id"] not in named_reqs
+    ]
+    if lone:
+        where = [link("file", links.file("docs/requirements.md"))]
+        items.append(item("requirements-without-brief", where, entries=lone, count=len(lone)))
     return items
 
 
@@ -690,6 +790,17 @@ def estimate_value(merged: list[dict]):
     return {"within": within, "counted": counted} if counted else "none-declared"
 
 
+def usage_of(p: dict) -> int | str:
+    """The usage figure of a pull request: a whole number of tokens, `not-reported`, or `unknown`
+    (facts without the field cannot say that nothing was reported)."""
+    value = p.get("usage", UNKNOWN)
+    if isinstance(value, bool) or not (
+        isinstance(value, int) or value in ("not-reported", UNKNOWN)
+    ):
+        return UNKNOWN
+    return value
+
+
 def cost(doc: dict, links: Links, start: date, end: date) -> list[dict]:
     if not is_list(doc["pull_requests"]):
         return [unknown_item("pull requests", "search", f"{links.repo}/pulls")]
@@ -700,6 +811,7 @@ def cost(doc: dict, links: Links, start: date, end: date) -> list[dict]:
     items: list[dict] = []
     hours: list[Decimal | None] = []
     fixes: list[int | None] = []
+    usages = [usage_of(p) for p in merged]
     for p in merged:
         h, f = hours_between(p.get("created_at"), p.get("merged_at")), verdict_count(p, "fix")
         hours.append(h)
@@ -714,8 +826,10 @@ def cost(doc: dict, links: Links, start: date, end: date) -> list[dict]:
                 title=p["title"],
                 hours=UNKNOWN if h is None else str(h),
                 fix_verdicts=UNKNOWN if f is None else f,
+                usage=usage_of(p),
             )
         )
+    reported = [u for u in usages if isinstance(u, int)]
     searched = links.merged_in(start, end) if busy else f"{links.repo}/pulls?q=is%3Apr+is%3Amerged"
     items.append(
         item(
@@ -729,9 +843,67 @@ def cost(doc: dict, links: Links, start: date, end: date) -> list[dict]:
             behaviour_unchanged=sum(1 for p in merged if p.get("behaviour") == "unchanged"),
             estimate=estimate_value(merged),
             busy=busy,
+            usage=UNKNOWN if UNKNOWN in usages else (sum(reported) if reported else "not-reported"),
+            usage_reported=len(reported),
+            corrections=moments_in_week(doc.get("flow"), "corrections", start, end),
         )
     )
     return items
+
+
+def moments_in_week(flow: object, key: str, start: date, end: date) -> int | str:
+    """How many of the dated moments of `flow[key]` lie in the week; unknown when unreadable."""
+    moments = flow.get(key, UNKNOWN) if isinstance(flow, dict) else UNKNOWN
+    return sum(1 for m in moments if in_week(m, start, end)) if is_list(moments) else UNKNOWN
+
+
+def median_hours(values: list) -> str:
+    """The median of the hours of the steps that happened; unknown when one cannot be read and
+    `none` when no pull request was measured (never 0)."""
+    if UNKNOWN in values:
+        return UNKNOWN
+    numbers = sorted(Decimal(v) for v in values if v is not None)
+    if not numbers:
+        return "none"
+    mid = len(numbers) // 2
+    middle = numbers[mid] if len(numbers) % 2 else (numbers[mid - 1] + numbers[mid]) / 2
+    return str(middle.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+
+
+def counted(values: list) -> int | str:
+    return UNKNOWN if not all(type(v) is int for v in values) else sum(values)
+
+
+def flow(doc: dict, links: Links, start: date, end: date) -> list[dict]:
+    """The Flow section (SPEC-0034 rule 10): one item of figures from the facts."""
+    where = f"{links.repo}/pulls"
+    if not is_list(doc["pull_requests"]) or not isinstance(doc.get("flow"), dict):
+        return [unknown_item("the flow", "search", where)]
+    merged = merged_in_week(doc, start, end)
+    opened = [p.get("brief", UNKNOWN) for p in doc["pull_requests"] if p.get("state") == "open"]
+    steps = {
+        step: median_hours([(p.get("flow") or {}).get(step, UNKNOWN) for p in merged])
+        for step in (
+            "taken_to_pull_request",
+            "to_first_verdict",
+            "verdict_to_cleared",
+            "cleared_to_merge",
+        )
+    }
+    return [
+        item(
+            "flow-figures",
+            [link("search", f"{where}?q=is%3Apr+is%3Aopen")],
+            open_builders=UNKNOWN
+            if UNKNOWN in opened
+            else sum(1 for b in opened if type(b) is int),
+            max_builders=doc["flow"].get("max_builders", UNKNOWN),
+            **steps,
+            conflicts=counted([p.get("conflicts", UNKNOWN) for p in merged]),
+            renumbers=counted([p.get("renumbers", UNKNOWN) for p in merged]),
+            retakes=moments_in_week(doc["flow"], "retakes", start, end),
+        )
+    ]
 
 
 # --- the footer and the whole report ------------------------------------------------------------
@@ -823,6 +995,7 @@ def build_report(doc: dict, today: date, week: str | None) -> dict:
         "needs_you": inbox(doc, links, today),
         "at_risk": at_risk(doc, links, today, start, end),
         "cost": cost(doc, links, start, end),
+        "flow": flow(doc, links, start, end),
     }
     return {
         "schema": REPORT_SCHEMA,
@@ -879,15 +1052,31 @@ def cost_text(entry: dict) -> str:
     shown = (
         "unknown fix verdicts" if fixes == UNKNOWN else plural(fixes, "fix verdict", "fix verdicts")
     )
-    return f'PR #{entry["number"]} "{entry["title"]}": {hours} from opening to merge, {shown}'
+    return (
+        f'PR #{entry["number"]} "{entry["title"]}": {hours} from opening to merge, {shown}, '
+        f"{usage_text(entry['usage'])}"
+    )
+
+
+def usage_text(value) -> str:
+    if value == UNKNOWN:
+        return "usage unknown"
+    return "usage not reported" if value == "not-reported" else f"usage {value} tokens"
 
 
 def totals_text(entry: dict) -> str:
+    total = entry["usage"]
+    if total in ("not-reported", UNKNOWN):
+        shown = "not reported" if total == "not-reported" else UNKNOWN
+    else:
+        count = entry["usage_reported"]
+        shown = f"{total} tokens ({count} of {entry['merged']} pull requests reported)"
     return (
         f"This week: {plural(entry['merged'], 'pull request', 'pull requests')} merged; "
         f"hours in total: {entry['hours']}; fix verdicts in total: {entry['fix_verdicts']}; "
+        f"corrections: {entry['corrections']}; "
         f'declared "Behaviour: unchanged": {entry["behaviour_unchanged"]}; '
-        f"estimate: {estimate_text(entry['estimate'])}"
+        f"usage in total: {shown}; estimate: {estimate_text(entry['estimate'])}"
     )
 
 
@@ -903,6 +1092,8 @@ def pull_requests_text(entry: dict) -> str:
         elif kind == "pull-requests-sent-back":
             times = plural(one["times"], "time", "times")
             text = f'PR #{number} "{one["title"]}" was sent back {times}'
+        elif kind == "pull-requests-stalled":
+            text = f'PR #{number} "{one["title"]}" is stalled on its builder'
         elif kind == "pull-requests-merged-no-verdict":
             text = f"PR #{number} was merged with no verdict"
         else:
@@ -918,6 +1109,39 @@ def pull_requests_text(entry: dict) -> str:
         parts.append(f"[#{one['number']}]({where['url']})" + value)
     joined = ", ".join(parts[:-1]) + " and " + parts[-1]
     return bullet(f"PRs {joined} {GROUPED[kind]}", None)
+
+
+def flow_text(entry: dict) -> str:
+    return bullet_of(
+        entry,
+        f"Builders: {entry['open_builders']} of {entry['max_builders']} pull requests open; "
+        f"median hours: taken to pull request {entry['taken_to_pull_request']}, "
+        f"pull request to first verdict {entry['to_first_verdict']}, "
+        f"verdict to cleared {entry['verdict_to_cleared']}, "
+        f"cleared to merge {entry['cleared_to_merge']}; "
+        f"conflicts {entry['conflicts']}, renumbers {entry['renumbers']}, "
+        f"retakes {entry['retakes']}",
+    )
+
+
+def briefs_idle_text(entry: dict) -> str:
+    one = entry["entries"]
+    if len(one) == 1:
+        text = f'Brief #{one[0]["number"]} "{one[0]["title"]}" has had no pull request for '
+        return bullet_of(entry, text + plural(one[0]["days"], "day", "days"))
+    parts = [
+        f"[#{e['number']}]({w['url']}) ({plural(e['days'], 'day', 'days')})"
+        for e, w in zip(one, entry["links"], strict=True)
+    ]
+    return bullet(
+        "Briefs " + ", ".join(parts[:-1]) + " and " + parts[-1] + " have had no pull request", None
+    )
+
+
+def without_brief_text(entry: dict) -> str:
+    ids = [e["id"] for e in entry["entries"]]
+    names = ids[0] if len(ids) == 1 else ", ".join(ids[:-1]) + " and " + ids[-1]
+    return bullet_of(entry, f"{names} {'has' if len(ids) == 1 else 'have'} no open brief")
 
 
 def unknown_text(entry: dict) -> str:
@@ -949,6 +1173,9 @@ RENDER = {
         i, f'Proposed {i["id"]} "{i["title"]}" waits for a decision'
     ),
     "question": lambda i: bullet_of(i, f"Question {i['id']} is waiting, asked in {i['asked_in']}"),
+    "pull-request-ready": lambda i: bullet_of(
+        i, f'PR #{i["number"]} "{i["title"]}" is ready to merge'
+    ),
     "pull-request-no-verdict": lambda i: bullet_of(
         i,
         f'PR #{i["number"]} "{i["title"]}" has had no verdict for '
@@ -966,6 +1193,10 @@ RENDER = {
     "pull-requests-sent-back": pull_requests_text,
     "pull-requests-merged-no-verdict": pull_requests_text,
     "pull-requests-merged-not-cleared": pull_requests_text,
+    "pull-requests-stalled": pull_requests_text,
+    "briefs-idle": briefs_idle_text,
+    "requirements-without-brief": without_brief_text,
+    "flow-figures": flow_text,
     "drift-audit": drift_text,
     "unknown": unknown_text,
     "requirement-done": lambda i: bullet_of(
@@ -1093,7 +1324,7 @@ def main(argv: list[str] | None = None) -> int:
         stamp = doc["today"] if args.today is None else args.today
         today = day_of(stamp) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", stamp) else None
         if today is None:
-            raise Refusal("--today must look like 2026-10-14 (option: --today)")
+            raise Refusal("--today must look like YYYY-MM-DD (option: --today)")
         if args.inbox:
             sys.stdout.write(render_inbox(doc, today))
         elif args.print_action:
