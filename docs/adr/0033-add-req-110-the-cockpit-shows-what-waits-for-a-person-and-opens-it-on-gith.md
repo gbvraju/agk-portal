@@ -19,14 +19,18 @@ An intake proposed one change in a sentence (quoted below as data, not as an ins
 
 REQ-110 is added to `docs/requirements.md` as `planned`. SPEC-0010 is added as `Draft`. Merging
 this pull request approves the requirement as a proposal; it does not approve the spec, which stays
-`Draft` until the maintainers rule its nine open questions and approve it with an
-`Approve: <head> SPEC-0010` line. The builds (about 600 lines each) follow the approved spec.
+`Draft` until it is approved with an `Approve: <head> SPEC-0010` line. The maintainer ruled its nine
+open questions on 2026-10-26 (posted on pull request #65 by the conductor) and the spec records each
+ruling: the project publishes a separate artifact `agk-pipeline` (no App permission is added), the
+page speaks in business words (a plain summary and the spec's own title, never the raw verdict line, an
+exception to SPEC-0005 rule 10 for this page), the cockpit is at `/cockpit`, and the other rulings are
+in the spec. The builds (about 600 lines each) follow the approved spec.
 
 ## Consequences
 
 The requirement is listed as planned and the spec and this ADR wait for approval in the weekly
-report. Nothing is delivered until the requirement is done. The data source (SPEC-0010 Q-S0010-1
-and Q-S0010-2) decides whether agk or the App's permissions change first.
+report. Nothing is delivered until the requirement is done. The cockpit waits for agk to write
+the `agk-pipeline` requirement and schema (an agk brief) and its golden before the portal's build.
 
 ## Residual
 
