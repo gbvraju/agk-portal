@@ -1,6 +1,6 @@
 # ADR-0034: Upgrade agk from 0.50.0 to 0.55.0
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-25
 - Deciders: maintainers
 - Related: ADR-0027
