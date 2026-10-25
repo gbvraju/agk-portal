@@ -1,6 +1,6 @@
 # ADR-0032: The report reader accepts schema 6 and shows Flow, the stalled work and the corrections
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-25
 - Deciders: maintainers
 - Related: ADR-0019, ADR-0030, ADR-0031
