@@ -178,7 +178,7 @@ test("REQ-105 AC3: the title of a ready pull request is escaped, an address that
 test("REQ-105 AC8: a schema this page does not read is said on the card, not shown as an empty week, and a malformed schema still could not be read", async () => {
   assert.equal(UNKNOWN_SCHEMA_REASON, "the report has a schema this page does not read");
   const { facts, document } = schema4("busy");
-  for (const schema of [5, 6, 99, 0, -1]) {
+  for (const schema of [6, 7, 99, 0, -1]) {
     const doc = clone(document);
     doc.schema = schema;
     const page = await cardOf(facts, doc);
@@ -203,7 +203,7 @@ test("REQ-109 AC3: the start page groups a schema 4 report by its counts, and a 
   calm.counts.needs_you = 0;
   calm.counts.at_risk = 0;
   const unknown = clone(busy.document);
-  unknown.schema = 5;
+  unknown.schema = 6;
   const results = [await resultOf(busy.facts, busy.document), await resultOf(busy.facts, calm), await resultOf(busy.facts, unknown)];
   const app = createApp(createCore({ config: { get: (n: ConfigName) => ({ GITHUB_APP_CLIENT_ID: "Iv1.fixtureclientid", GITHUB_APP_CLIENT_SECRET: "fixture-client-secret-value", SESSION_KEY: KEY, CALLBACK_URL: "https://portal.example/callback" })[n] } as Config, now: () => WEEK42 }), {
     projects: async () => ({ kind: "ok", notices: [], projects: [{ name: "acme/api", result: results[0]! }, { name: "acme/web", result: results[1]! }, { name: "acme/app", result: results[2]! }] }),

@@ -96,3 +96,16 @@ SPEC-0009 is `docs/specs/0009-a-person-with-many-projects-starts-from-one-line-p
 **Reason.** The start page placed a project by its counts only for a report "of schema 3"; a report of schema 4 has the same `counts`, so a project whose latest report is schema 4 must be placed by them and not read "the report has no counts". The reason of a schema that is not read is the card's (rule 3, "the card's existing reasons").
 
 **Old text and new text.** Rule 1: "(schema 3; a count of `"unknown"` reads "not known yet")" becomes "(schema 3 or later; ...)". Rule 2: "is of schema 3 and is for" becomes "is of schema 3 or later and is for". Rule 3: "or its report is of schema 1 or 2" gains "(a report of schema 3 or later has counts)".
+
+## Amendment 15 — SPEC-0005 rules 10 and 13, the intro, the Tests and the Residual: report.json schema 5 and the usage figures
+
+**Reason.** agk #198 (REQ-040 part c1) makes the `schema` of `report.json` 5: the kind `pull-request-cost` gains `usage` (a whole number of tokens, `not-reported` or `unknown`) and the kind `week-totals` gains `usage` (the same) and `usage_reported` (a whole number); no other field changes. The page reads schemas 1 to 4 only, so the first report written after #198 would read "the report has a schema this page does not read". The brief of issue #60 asks the figures to be rendered as the other cost figures are: tokens when a number, `not reported`, `unknown`, never zero for a missing figure, and `usage_reported` as "<n> pull requests reported a usage figure". The wording of the sentence and the tiles is fixed here (Q-B20-1).
+
+**Old text and new text.** (the words that change; the rest of each paragraph is as it is)
+
+1. The introduction: "(...; schema 4 from agk #184, REQ-037 part c, the group `ready`)" gains "; schema 5 from agk #198, REQ-040 part c1, the usage figures".
+2. Rule 13: "the number 1, 2, 3 or 4" becomes "1, 2, 3, 4 or 5" and gains "schema 5, agk #198, adds `usage`, a whole number from 0, `"not-reported"` or `"unknown"`, to the items of kind `pull-request-cost` and `week-totals`, and `usage_reported`, an integer from 0, to `week-totals`, and nothing else"; the refusal reads "whose schema is not 1, 2, 3, 4 or 5" and the list of refusals gains "schema 5 without `usage` or `usage_reported`, schema 4 with either". The card with an unknown schema is for an integer that is not 1 to 5.
+3. Rule 10, the per-change row: for schema 5 only the sentence "Usage: {u} tokens." ("Usage: 1 token."; "Usage: not reported."; "Usage: unknown.") before the reference.
+4. Rule 10, the totals row: for schema 5 only, two tiles after the estimate tile, "usage in total: {usage} tokens" ("usage in total: 1 token"; "usage in total: not reported"; "usage in total: unknown"; 0 is shown) and "{usage_reported} pull requests reported a usage figure" ("1 pull request reported a usage figure"; 0 is shown). The page places the data's numbers and computes none.
+5. Tests: "a schema other than 1, 2, 3 or 4" becomes "1, 2, 3, 4 or 5" and a line for rules 10 and 13 is added (REQ-105 AC2, AC5 and AC8).
+6. Residual: "schemas 1 to 4 (agk SPEC-0022, SPEC-0024, SPEC-0026 and #184)" becomes "schemas 1 to 5 (... and #198)".
