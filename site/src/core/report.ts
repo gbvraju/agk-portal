@@ -18,10 +18,10 @@ export interface ReportGroup {
   items: ReportItem[];
 }
 export interface ReportDocument {
-  schema: 1 | 2 | 3 | 4 | 5;
+  schema: 1 | 2 | 3 | 4 | 5 | 6;
   week: string;
   opening: { first: string; last: string; as_of: string };
-  sections: { delivered: ReportItem[]; proven: ReportItem[]; needs_you: ReportGroup[]; at_risk: ReportItem[]; cost: ReportItem[] };
+  sections: { delivered: ReportItem[]; proven: ReportItem[]; needs_you: ReportGroup[]; at_risk: ReportItem[]; cost: ReportItem[]; flow?: ReportItem[] };
   notices: ReportItem[];
 }
 
@@ -101,8 +101,10 @@ const needsItemOf = (extra: Record<string, Record<string, Check>>): Check =>
 const GROUPS = ["spec", "adr", "question", "pull-request", "residual", "requirement"] as const;
 const needsOf = (item: Check, groups: readonly string[]): Check => shape({ group: one(...groups), count: intOrUnknown, items: list(item) });
 // The At risk list of each schema. Schema 3 (agk SPEC-0026, kit 0.50.0) adds `count`, an integer from 0, to the four grouped kinds.
-const atRiskOf = (grouped: Record<string, Check>): Check =>
+// Schema 6 (agk #208, REQ-041 build d) adds the kinds `pull-requests-stalled`, `briefs-idle` and `requirements-without-brief`.
+const atRiskOf = (grouped: Record<string, Check>, more: Record<string, Record<string, Check>> = {}): Check =>
   kinds({
+    ...more,
     "residual-overdue": { due: date, days: int, text: str },
     "pull-requests-open-long": { entries: list(shape({ number: int, days: int }, { title: str })), ...grouped },
     "pull-requests-sent-back": { entries: list(shape({ number: int, times: int }, { title: str })), ...grouped },
@@ -117,6 +119,7 @@ const count: Check = (v) => int(v) && (v as number) >= 0;
 // Schema 5 (agk #198, REQ-040 part c1) adds `usage` to both cost kinds (a whole number of tokens, "not-reported" or "unknown")
 // and `usage_reported`, a whole number from 0, to the totals.
 const usage: Check = either(count, one("not-reported", "unknown"));
+// Schema 6 adds `corrections` (an integer from 0 or "unknown") to the totals.
 const costOf = (extra: Record<string, Check>, afterRounds: Record<string, Check> = {}, change: Record<string, Check> = {}, totals: Record<string, Check> = {}): Check =>
   kinds({
     "pull-request-cost": { number: int, title: str, hours, fix_verdicts: intOrUnknown, ...change },
@@ -136,9 +139,16 @@ const notices: Check = (() => {
   return (v) => isObject(v) && typeof v["kind"] === "string" && Object.hasOwn(checks, v["kind"]) && (checks[v["kind"]] as Check)(v);
 })();
 
+// The Flow items of schema 6 (agk #208, REQ-041 build d): one item of figures, or `unknown`. A median is hours with one decimal,
+// `none` or `unknown`.
+const median: Check = either(hours, one("none"));
+const flowOf: Check = kinds({
+  "flow-figures": { open_builders: intOrUnknown, max_builders: intOrUnknown, taken_to_pull_request: median, to_first_verdict: median, verdict_to_cleared: median, cleared_to_merge: median, conflicts: intOrUnknown, renumbers: intOrUnknown, retakes: intOrUnknown },
+  ...UNKNOWN,
+});
 const countOrUnknown: Check = either((v) => int(v) && (v as number) >= 0, one("unknown"));
 // The number of each section and the lists of the schema; `counts` (schema 3) has exactly the four keys.
-const documentOf = (schema: 1 | 2 | 3 | 4 | 5, lists: { needs: Check; atRisk: Check; cost: Check }, counts: Record<string, Check> = {}): Check =>
+const documentOf = (schema: 1 | 2 | 3 | 4 | 5 | 6, lists: { needs: Check; atRisk: Check; cost: Check; flow?: Check }, counts: Record<string, Check> = {}): Check =>
   shape({
     schema: one(schema),
     ...counts,
@@ -150,6 +160,7 @@ const documentOf = (schema: 1 | 2 | 3 | 4 | 5, lists: { needs: Check; atRisk: Ch
       needs_you: list(lists.needs),
       at_risk: list(lists.atRisk),
       cost: list(lists.cost),
+      ...(lists.flow === undefined ? {} : { flow: list(lists.flow) }),
     }),
     notices: list(notices),
   });
@@ -163,6 +174,19 @@ const documents: Record<number, Check> = {
   3: documentOf(3, { needs: needs1, atRisk: atRiskOf({ count }), cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }) }, countsOf),
   4: documentOf(4, { needs: needs4, atRisk: atRiskOf({ count }), cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }) }, countsOf),
   5: documentOf(5, { needs: needs4, atRisk: atRiskOf({ count }), cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }, { usage }, { usage, usage_reported: count }) }, countsOf),
+  6: documentOf(
+    6,
+    {
+      needs: needs4,
+      atRisk: atRiskOf(
+        { count },
+        { "pull-requests-stalled": { entries: list(shape({ number: int }, { title: str })), count }, "briefs-idle": { entries: list(shape({ number: int, title: str, days: int })), count }, "requirements-without-brief": { entries: list(shape({ id: str })), count } },
+      ),
+      cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }, { usage }, { usage, usage_reported: count, corrections: either(count, one("unknown")) }),
+      flow: flowOf,
+    },
+    countsOf,
+  ),
 };
 
 // The document, or undefined when the text is not JSON or departs from the closed list.

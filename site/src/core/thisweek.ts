@@ -155,23 +155,23 @@ function needsLine(item: ReportItem): string {
 }
 
 // A pull request of an entry: its number linked to the item's address for that pull request, else the number as text.
-function change(item: ReportItem, n: unknown): string {
-  const url = item.links.map((l) => githubAddress(l.url)).find((u) => u !== undefined && u.endsWith(`/pull/${n}`));
+function change(item: ReportItem, n: unknown, path = "pull"): string {
+  const url = item.links.map((l) => githubAddress(l.url)).find((u) => u !== undefined && u.endsWith(`/${path}/${n}`));
   const text = `#${n}`;
   return url === undefined ? text : `<a href="${escapeText(url)}">${text}</a>`;
 }
 const joined = (parts: string[]): string => (parts.length < 2 ? parts.join("") : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`);
 
 // One pull request is a sentence of its own with its reference; two or more are one sentence that names every one.
-function groupedLine(item: ReportItem, one: (e: Record<string, unknown>) => string, many: string, label: (e: Record<string, unknown>) => string): string {
+function groupedLine(item: ReportItem, one: (e: Record<string, unknown>) => string, many: string, label: (e: Record<string, unknown>) => string, noun: [string, string] = ["change", "changes"], path = "pull"): string {
   const entries = item["entries"] as Record<string, unknown>[];
   const [first] = entries;
   // From schema 3 the data states how many changes the item names; above 5 the line says that number and the changes follow
   // in a details element (SPEC-0008 rule 8 as amended). The page counts nothing: the number is the data's `count`.
   const count = item["count"];
-  if (typeof count === "number" && count > FOLD_OVER) return `<details class="fold"><summary>${count} changes ${many}</summary>\n<p>${entries.map((e) => `${change(item, e["number"])}${label(e)}`).join(", ")}</p>\n</details>`;
-  if (entries.length === 1 && first !== undefined) return `${one(first)} (${change(item, first["number"])})`;
-  return `Changes ${joined(entries.map((e) => `${change(item, e["number"])}${label(e)}`))} ${many}`;
+  if (typeof count === "number" && count > FOLD_OVER) return `<details class="fold"><summary>${count} ${noun[1]} ${many}</summary>\n<p>${entries.map((e) => `${change(item, e["number"], path)}${label(e)}`).join(", ")}</p>\n</details>`;
+  if (entries.length === 1 && first !== undefined) return `${one(first)} (${change(item, first["number"], path)})`;
+  return `${noun[1][0]?.toUpperCase()}${noun[1].slice(1)} ${joined(entries.map((e) => `${change(item, e["number"], path)}${label(e)}`))} ${many}`;
 }
 
 function atRiskLine(item: ReportItem): string {
@@ -186,6 +186,16 @@ function atRiskLine(item: ReportItem): string {
       return groupedLine(item, () => "A change was merged without a review.", "were merged without a review.", () => "");
     case "pull-requests-merged-not-cleared":
       return groupedLine(item, () => "A change was merged before its final review.", "were merged before their final review.", () => "");
+    case "pull-requests-stalled":
+      return groupedLine(item, () => "A change is stalled on its builder.", "are stalled on their builders.", () => "");
+    case "briefs-idle":
+      return groupedLine(item, (e) => `A brief has had no pull request for ${plural(e["days"] as number, "day", "days")}.`, "have had no pull request.", (e) => ` (${plural(e["days"] as number, "day", "days")})`, ["brief", "briefs"], "issues");
+    case "requirements-without-brief": {
+      const ids = (item["entries"] as Record<string, unknown>[]).map((e) => escapeText(String(e["id"])));
+      const count = item["count"];
+      if (typeof count === "number" && count > FOLD_OVER) return `<details class="fold"><summary>${count} requirements have no open brief.</summary>\n<p>${ids.join(", ")}</p>\n</details>`;
+      return `${joined(ids)} ${ids.length === 1 ? "has" : "have"} no open brief.`;
+    }
     case "drift-audit": {
       const total = item["total"];
       const found = typeof total === "number" ? `${plural(total, "issue", "issues")} found.` : `the number of issues found is ${NOT_KNOWN}.`;
@@ -233,6 +243,7 @@ function totalsTiles(item: ReportItem): string[] {
     ...(typeof item["hours_unknown"] === "number" ? [`${plural(item["hours_unknown"], "change", "changes")} without known hours`] : []),
     typeof rounds === "number" ? `${plural(rounds, "review round", "review rounds")} in total` : `review rounds in total: ${NOT_KNOWN}`,
     ...(typeof item["fix_verdicts_unknown"] === "number" ? [`${plural(item["fix_verdicts_unknown"], "change", "changes")} without known review rounds`] : []),
+    ...(item["corrections"] === undefined ? [] : [typeof item["corrections"] === "number" ? plural(item["corrections"], "correction", "corrections") : "corrections: unknown"]),
     `${item["behaviour_unchanged"]} declared as not changing behaviour`,
     `estimate: ${range}`,
     ...(item["usage"] === undefined ? [] : [`usage in total: ${tokens(item["usage"])}`]),
@@ -246,6 +257,13 @@ function timePart(items: ReportItem[]): string {
   const tiles = items.flatMap((item) => (item.kind === "week-totals" ? totalsTiles(item) : [costLine(item)]));
   const week = items.filter((item) => item.kind === "week-totals" && item.links.length > 0).map((item) => `\n<p class="week">${reference(item, "the week")}</p>`);
   return `<div class="part time">\n<h4>Time and review</h4>\n<ul class="tiles">\n${tiles.map((t) => `<li class="tile">${t}</li>`).join("\n")}\n</ul>${week.join("")}\n</div>`;
+}
+
+// The Flow line of schema 6: agk's own words over the figures of the item, `none` and `unknown` as written (SPEC-0005 rule 10).
+function flowLine(item: ReportItem): string {
+  if (item.kind !== "flow-figures") return unreadable(item);
+  const f = (key: string): string => escapeText(String(item[key]));
+  return `Builders: ${f("open_builders")} of ${f("max_builders")} pull requests open; median hours: taken to pull request ${f("taken_to_pull_request")}, pull request to first verdict ${f("to_first_verdict")}, verdict to cleared ${f("verdict_to_cleared")}, cleared to merge ${f("cleared_to_merge")}; conflicts ${f("conflicts")}, renumbers ${f("renumbers")}, retakes ${f("retakes")}`;
 }
 
 // One part: its heading and its lines, or the empty phrase.
@@ -272,5 +290,6 @@ export function thisWeekSection(report: ReportDocument): string {
     part("At risk", report.sections.at_risk, atRiskLine, (i) => statusOf(i, "risk")),
   ];
   lines.push(`<div class="parts">\n${four.join("\n")}\n</div>`, timePart(report.sections.cost));
+  if (report.sections.flow !== undefined) lines.push(part("Flow", report.sections.flow, flowLine, () => undefined));
   return `<section>\n<h3>This week</h3>\n${lines.join("\n")}\n</section>`;
 }
