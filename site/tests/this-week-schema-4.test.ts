@@ -123,6 +123,15 @@ test("REQ-105 AC8: the group and the kind belong to schema 4 only: schemas 1 to 
   const two = JSON.parse(read(resolve(import.meta.dirname, "fixtures", "report-schema-2", "kinds.report.json")));
   two.sections.needs_you.unshift({ group: "ready", count: 0, items: [] });
   assert.equal(parseReport(JSON.stringify(two)), undefined, "schema 2 with the group");
+  const one = clone(JSON.parse(read(resolve(import.meta.dirname, "fixtures", "report-schema-2", "kinds.report.json"))));
+  one.schema = 1;
+  delete one.sections.cost.find((i: Doc) => i.kind === "week-totals").hours_unknown;
+  assert.notEqual(parseReport(JSON.stringify(one)), undefined, "a schema 1 report without the group reads");
+  one.sections.needs_you.unshift({ group: "ready", count: 0, items: [] });
+  assert.equal(parseReport(JSON.stringify(one)), undefined, "schema 1 with the group");
+  one.sections.needs_you.shift();
+  one.sections.needs_you[0].items.push({ kind: "pull-request-ready", number: 1, title: "t", links: [] });
+  assert.equal(parseReport(JSON.stringify(one)), undefined, "schema 1 with the kind");
 });
 
 test("REQ-105 AC2: the group Ready to merge stands first, its heading carries the data's count and each item is PR #n and its title, linked to its pull request", async () => {
