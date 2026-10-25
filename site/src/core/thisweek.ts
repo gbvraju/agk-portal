@@ -56,11 +56,15 @@ function deliveredLine(item: ReportItem): string {
   }
 }
 
+// The usage of schema 5, as the data holds it: a number of tokens, "not reported" or "unknown"; absent before schema 5.
+const tokens = (v: unknown): string => (typeof v === "number" ? plural(v, "token", "tokens") : v === "not-reported" ? "not reported" : "unknown");
+const usageSentence = (v: unknown): string => (v === undefined ? "" : ` Usage: ${tokens(v)}.`);
+
 function costLine(item: ReportItem): string {
   const hours = (v: unknown, tail: string): string => (v === "unknown" ? `hours ${NOT_KNOWN} ${tail}` : `${escapeText(String(v))} hours ${tail}`);
   switch (item.kind) {
     case "pull-request-cost":
-      return `A change took ${hours(item["hours"], "from opening to merge")} and ${rounds(item["fix_verdicts"])}. ${reference(item, `#${item["number"]}`)}`;
+      return `A change took ${hours(item["hours"], "from opening to merge")} and ${rounds(item["fix_verdicts"])}.${usageSentence(item["usage"])} ${reference(item, `#${item["number"]}`)}`;
     default:
       return unreadable(item);
   }
@@ -231,6 +235,8 @@ function totalsTiles(item: ReportItem): string[] {
     ...(typeof item["fix_verdicts_unknown"] === "number" ? [`${plural(item["fix_verdicts_unknown"], "change", "changes")} without known review rounds`] : []),
     `${item["behaviour_unchanged"]} declared as not changing behaviour`,
     `estimate: ${range}`,
+    ...(item["usage"] === undefined ? [] : [`usage in total: ${tokens(item["usage"])}`]),
+    ...(typeof item["usage_reported"] === "number" ? [`${plural(item["usage_reported"], "pull request", "pull requests")} reported a usage figure`] : []),
   ];
 }
 

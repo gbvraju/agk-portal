@@ -18,7 +18,7 @@ export interface ReportGroup {
   items: ReportItem[];
 }
 export interface ReportDocument {
-  schema: 1 | 2 | 3 | 4;
+  schema: 1 | 2 | 3 | 4 | 5;
   week: string;
   opening: { first: string; last: string; as_of: string };
   sections: { delivered: ReportItem[]; proven: ReportItem[]; needs_you: ReportGroup[]; at_risk: ReportItem[]; cost: ReportItem[] };
@@ -114,10 +114,13 @@ const atRiskOf = (grouped: Record<string, Check>): Check =>
 // The cost list of each schema. Schema 2 (agk SPEC-0024, kit 0.43.0) adds hours_unknown to the week-totals item: an integer
 // from 0, always present.
 const count: Check = (v) => int(v) && (v as number) >= 0;
-const costOf = (extra: Record<string, Check>, afterRounds: Record<string, Check> = {}): Check =>
+// Schema 5 (agk #198, REQ-040 part c1) adds `usage` to both cost kinds (a whole number of tokens, "not-reported" or "unknown")
+// and `usage_reported`, a whole number from 0, to the totals.
+const usage: Check = either(count, one("not-reported", "unknown"));
+const costOf = (extra: Record<string, Check>, afterRounds: Record<string, Check> = {}, change: Record<string, Check> = {}, totals: Record<string, Check> = {}): Check =>
   kinds({
-    "pull-request-cost": { number: int, title: str, hours, fix_verdicts: intOrUnknown },
-    "week-totals": { merged: int, hours, ...extra, fix_verdicts: intOrUnknown, ...afterRounds, behaviour_unchanged: int, estimate: either(shape({ within: int, counted: int }), one("none-declared")), busy: bool },
+    "pull-request-cost": { number: int, title: str, hours, fix_verdicts: intOrUnknown, ...change },
+    "week-totals": { merged: int, hours, ...extra, fix_verdicts: intOrUnknown, ...afterRounds, behaviour_unchanged: int, estimate: either(shape({ within: int, counted: int }), one("none-declared")), busy: bool, ...totals },
     ...UNKNOWN,
   });
 const issueState = one("found", "none-found", "unknown");
@@ -135,7 +138,7 @@ const notices: Check = (() => {
 
 const countOrUnknown: Check = either((v) => int(v) && (v as number) >= 0, one("unknown"));
 // The number of each section and the lists of the schema; `counts` (schema 3) has exactly the four keys.
-const documentOf = (schema: 1 | 2 | 3 | 4, lists: { needs: Check; atRisk: Check; cost: Check }, counts: Record<string, Check> = {}): Check =>
+const documentOf = (schema: 1 | 2 | 3 | 4 | 5, lists: { needs: Check; atRisk: Check; cost: Check }, counts: Record<string, Check> = {}): Check =>
   shape({
     schema: one(schema),
     ...counts,
@@ -159,6 +162,7 @@ const documents: Record<number, Check> = {
   2: documentOf(2, { needs: needs1, atRisk: atRiskOf({}), cost: costOf({ hours_unknown: count }) }),
   3: documentOf(3, { needs: needs1, atRisk: atRiskOf({ count }), cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }) }, countsOf),
   4: documentOf(4, { needs: needs4, atRisk: atRiskOf({ count }), cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }) }, countsOf),
+  5: documentOf(5, { needs: needs4, atRisk: atRiskOf({ count }), cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }, { usage }, { usage, usage_reported: count }) }, countsOf),
 };
 
 // The document, or undefined when the text is not JSON or departs from the closed list.
