@@ -3,9 +3,9 @@
 // a whole number. The reader accepts schemas 1 to 5, each with its own closed list, and a schema above 5 is still said not to
 // be read. The page places the data and computes nothing. Markers REQ-105 AC2, AC5 and AC8. Recorded GitHub answers, no network.
 // The documents here are schema 4 goldens of agk #184 raised to schema 5 in the test; the goldens of agk #198 are tested in
-// the last test of this file once they are copied (tests/fixtures/report-schema-5).
+// the last tests of this file (tests/fixtures/report-schema-5).
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import { UNKNOWN_SCHEMA_REASON, createGithubClient, factsCard, parseReport, readFacts } from "../src/core/index.ts";
@@ -192,12 +192,28 @@ test("REQ-105 AC5: schemas 1 to 4 show no usage tile and no sentence says usage"
   assert.doesNotMatch(page, /usage/i);
 });
 
-test("REQ-105 AC8: the goldens of agk #198 are schema 5, hold no token and no signed address, and read", { skip: !existsSync(dir5) }, async () => {
-  const names = ["busy", "facts-pr-states"];
-  for (const name of names) {
+// The goldens of agk #198 at head a34c56f (tests/kit/fixtures/report/golden/{busy,facts-ok,kinds}/report.json), copied unchanged.
+const factsOf = (name: string): string => read(name === "facts-ok" ? resolve(import.meta.dirname, "fixtures", "report-schema-3", "facts-ok.facts.json") : resolve(fixtureDir, `${name}.facts.json`));
+const golden = (name: string): Doc => JSON.parse(read(resolve(dir5, `${name}.report.json`)));
+
+test("REQ-105 AC8: the goldens of agk #198 (busy, facts-ok, kinds) are schema 5, hold no token and no signed address, and read", async () => {
+  for (const name of ["busy", "facts-ok", "kinds"]) {
     const text = read(resolve(dir5, `${name}.report.json`));
     assert.doesNotMatch(text, /ghu_|ghs_|github_pat_|sig=|token/i, name);
     assert.equal(JSON.parse(text).schema, 5, name);
     assert.notEqual(parseReport(text), undefined, `${name}: reads`);
+    assert.ok((await cardOf(factsOf(name), golden(name))).includes(READABLE), `${name}: the card shows This week`);
   }
+});
+
+test("REQ-105 AC2 and AC5: the goldens place the usage as the data holds it: unknown, not reported, never zero", async () => {
+  const busy = tiles(await cardOf(factsOf("busy"), golden("busy")));
+  assert.deepEqual(busy.slice(-2), ["usage in total: unknown", "0 pull requests reported a usage figure"]);
+  const ok = tiles(await cardOf(factsOf("facts-ok"), golden("facts-ok")));
+  assert.deepEqual(ok.slice(-2), ["usage in total: not reported", "0 pull requests reported a usage figure"]);
+  assert.match(ok[0] as string, /^A change took 72\.0 hours from opening to merge and 0 review rounds\. Usage: not reported\./);
+  const kinds = tiles(await cardOf(factsOf("kinds"), golden("kinds")));
+  assert.equal(kinds.filter((t) => /Usage: unknown\./.test(t)).length, 4, "four per-change lines");
+  assert.deepEqual(kinds.slice(-2), ["usage in total: unknown", "0 pull requests reported a usage figure"]);
+  for (const page of [busy, ok, kinds]) assert.ok(page.every((t) => !/usage.*\b0 tokens/.test(t)));
 });
