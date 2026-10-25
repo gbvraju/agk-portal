@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
-import { createGithubClient, factsCard, parseReport, readFacts } from "../src/core/index.ts";
+import { UNKNOWN_SCHEMA_REASON, createGithubClient, factsCard, parseReport, readFacts } from "../src/core/index.ts";
 import { fixtureDir, writeReport } from "./support/report-script.ts";
 import { zip } from "./support/zip.ts";
 
@@ -102,6 +102,15 @@ test("REQ-105 AC8: schema 2 needs hours_unknown on the week-totals item, an inte
     totals(doc).hours_unknown = good;
     assert.notEqual(parseReport(JSON.stringify(doc)), undefined, `hours_unknown ${good}`);
   }
+});
+
+test("REQ-105 AC8: a schema 2 document with schema 0 is not parsed, and its card says the report has a schema this page does not read", async () => {
+  const { facts, document } = schema2("kinds");
+  const doc = clone(document);
+  doc.schema = 0;
+  assert.equal(parseReport(JSON.stringify(doc)), undefined);
+  assert.match(await cardOf(facts, doc), new RegExp(`not known yet: ${UNKNOWN_SCHEMA_REASON}\\.`));
+  assert.equal(UNKNOWN_SCHEMA_REASON, "the report has a schema this page does not read");
 });
 
 test("REQ-105 AC8: schema 1 stays exactly as it was: a schema 1 document with hours_unknown is refused", async () => {
