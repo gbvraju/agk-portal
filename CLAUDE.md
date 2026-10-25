@@ -5,7 +5,9 @@ rules in short form:
 
 1. You implement; you never decide. Decisions are ADRs or requirement statuses written by the reviewers. Where a
    brief leaves something open, record it as a `Q-…` question and choose the most conservative reading.
-2. One PR per item, branched from the default branch (`origin/<default branch>`), never stacked; one open PR at a
+2. One PR per item, branched from the default branch (`origin/<default branch>`), never stacked on another's
+   unmerged change; a dependence is declared with `Depends-on: #n`. One open PR per session: several sessions may
+   have one each in flow mode (`pr_mode` in `agk.toml`); in strict mode, the default, a person has one open PR at a
    time. Push and stop; never poll CI; never merge; never enable auto-merge.
 3. Protected paths (`config/protected-paths.txt`) change only with an ADR in the same PR that names each changed
    path class.
@@ -20,6 +22,8 @@ rules in short form:
    question, not a guess.
 10. Check the state of a pull request with `gh api repos/{owner}/{repo}/pulls/{n}` (a GET); the GraphQL form of the
     command is blocked in cloud sessions.
+
+The working rule of a session (what it acts on, what it never does, how it finds its next item) is in `config/session-rules.md`.
 
 ## Compaction recovery
 

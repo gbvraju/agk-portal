@@ -6,3 +6,5 @@ classes:
   docs:          {paths: [docs/, README.md], approvers: [maintainers]}
 teams:
   maintainers: {github_team: "@gbvraju"}   # replace with a user handle or @org/team
+spec_approvers: [gbvraju]   # the people who approve a spec; never a session or conductor account (SPEC-0032)
+verdict_authors: [gbvraju]   # the people whose Verdict: comments a session acts on (SPEC-0021 rule 5)

@@ -17,8 +17,7 @@ export interface Written {
 
 const cache = new Map<string, Written>();
 
-// What the script writes, as it writes it: the report of the installed kit (from kit 0.43.0 schema 2, with hours_unknown on
-// the totals). `mutate` changes a copy of the fixture's facts before the script runs (a day, a repository, a flag); `tag`
+// What the script writes, as it writes it: the report of the installed kit (kit 0.55.0, schema 6). `mutate` changes a copy of the fixture's facts before the script runs (a day, a repository, a flag); `tag`
 // names that change, because a result is kept per fixture and tag.
 export function writeReportKit(fixture: string, mutate?: (facts: Record<string, unknown>) => void, tag = ""): Written {
   const key = `${fixture}:${tag}`;
@@ -42,18 +41,29 @@ export function writeReportKit(fixture: string, mutate?: (facts: Record<string, 
   }
 }
 
-// The same report in its schema 1 form: the number 1 and none of the fields of schemas 2 and 3 (hours_unknown, counts, count,
-// fix_verdicts_unknown). The tests of schema 1 (the reader's first
-// list, the five tiles) take their data from here; the kit's schema 2 goldens and writeReportKit cover schema 2.
-export function writeReport(fixture: string, mutate?: (facts: Record<string, unknown>) => void, tag = ""): Written {
-  const kit = writeReportKit(fixture, mutate, tag);
-  const document = JSON.parse(kit.report);
+// A report in its schema 1 form: the number 1 and none of the fields of schemas 2 to 6 (hours_unknown, counts, count,
+// fix_verdicts_unknown, the group ready, usage, usage_reported, corrections, the key flow, the three At risk kinds of schema
+// 6 and the unknown items that kit 0.55.0 adds for facts the old fixtures do not carry). The tests of schema 1 (the reader's
+// first list, the five tiles) take their data from here; the kit's goldens and writeReportKit cover the later schemas.
+export function schema1Form(source: any): any {
+  const document = JSON.parse(JSON.stringify(source));
   document.schema = 1;
   delete document.counts;
   for (const item of document.sections.cost) {
-    delete item.hours_unknown;
-    delete item.fix_verdicts_unknown;
+    for (const key of ["hours_unknown", "fix_verdicts_unknown", "usage", "usage_reported", "corrections"]) delete item[key];
   }
+  const later = ["pull-requests-stalled", "briefs-idle", "requirements-without-brief"];
+  const laterUnknown = ["open briefs", "stalled pull requests", "requirements without a brief"];
+  document.sections.at_risk = document.sections.at_risk.filter((item: { kind: string; what?: string }) => !later.includes(item.kind) && !(item.kind === "unknown" && laterUnknown.includes(String(item.what))));
   for (const item of document.sections.at_risk) delete item.count;
+  document.sections.needs_you = document.sections.needs_you.filter((group: { group: string }) => group.group !== "ready");
+  delete document.sections.flow;
+  return document;
+}
+
+// The same report in its schema 1 form (schema1Form), for the tests of schema 1.
+export function writeReport(fixture: string, mutate?: (facts: Record<string, unknown>) => void, tag = ""): Written {
+  const kit = writeReportKit(fixture, mutate, tag);
+  const document = schema1Form(JSON.parse(kit.report));
   return { facts: kit.facts, report: JSON.stringify(document, null, 2) + "\n", document };
 }

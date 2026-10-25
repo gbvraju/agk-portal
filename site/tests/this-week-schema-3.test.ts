@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import { createGithubClient, factsCard, parseReport, readFacts } from "../src/core/index.ts";
-import { fixtureDir, writeReportKit } from "./support/report-script.ts";
+import { fixtureDir, schema1Form, writeReportKit } from "./support/report-script.ts";
 import { zip } from "./support/zip.ts";
 
 const TOKEN = "ghu_fixture_user_token_0123456789";
@@ -258,8 +258,10 @@ test("REQ-105 AC2: the schema 3 goldens show every item once for each of the fou
   }
 });
 
-test("REQ-105 AC2: the schema 3 golden is what the repository's script writes (kit 0.50.0) for the same facts", () => {
-  for (const name of ["busy", "kinds"]) assert.deepEqual(writeReportKit(name).document, schema3(name).document, name);
+// The repository's script writes the kit's schema (kit 0.55.0, schema 6) now; what it writes for these facts is still the kit's
+// schema 3 golden in the fields of schema 1, where the two schemas share their content.
+test("REQ-105 AC2: the schema 3 golden is what the repository's script writes (kit 0.55.0) for the same facts, in the schema 1 form", () => {
+  for (const name of ["busy", "kinds"]) assert.deepEqual(schema1Form(writeReportKit(name).document), schema1Form(schema3(name).document), name);
 });
 
 test("REQ-105 AC8: the schema 3 fixtures are the kit's goldens at v0.50.0 and hold no token and no signed address", () => {

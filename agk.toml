@@ -1,6 +1,6 @@
 # agk configuration. Read by the checks (earlier installs kept the stamp in pyproject.toml [tool.agk]).
 mode = "init"
-version = "0.50.0"
+version = "0.55.0"
 installed = "2026-10-21"
 default_branch = "main"
 test_dirs = ["site/tests"]
@@ -15,3 +15,7 @@ proof_timeout = 900
 # Hours a pull request may wait for a verdict before the decision inbox lists it (the weekly product report).
 inbox_hours = 48
 # Experimental, off by default: set experimental_reviewer = true, then run agk upgrade, to install the reviewer agent.
+
+# Who hands a finished builder its next work: "conductor" (the session asks on the agk-conductor issue and waits for an Assign: line) or "next" (session.py next, for setups with no conductor); a change needs an ADR.
+[flow]
+assign = "conductor"
