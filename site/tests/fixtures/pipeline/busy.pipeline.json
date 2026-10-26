@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "as_of": "2026-10-26T07:13:00Z",
+  "ready": [
+    {
+      "number": 7,
+      "summary": "A person can see the queue.",
+      "url": "https://github.com/demo-org/demo-repo/pull/7"
+    },
+    {
+      "number": 8,
+      "summary": "unknown",
+      "url": "https://github.com/demo-org/demo-repo/pull/8"
+    }
+  ],
+  "approve": [
+    {
+      "number": 9,
+      "spec": "SPEC-0036",
+      "spec_title": "A plain title",
+      "url": "https://github.com/demo-org/demo-repo/pull/9"
+    },
+    {
+      "number": 9,
+      "spec": "SPEC-0037",
+      "spec_title": "unknown",
+      "url": "https://github.com/demo-org/demo-repo/pull/9"
+    }
+  ],
+  "counts": {
+    "review": 2,
+    "fix": 1,
+    "ci-red": 0,
+    "conflict": 0,
+    "approve": 1,
+    "ready": 2
+  }
+}

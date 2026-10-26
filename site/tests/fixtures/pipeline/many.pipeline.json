@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "as_of": "2026-10-26T07:13:00Z",
+  "ready": [
+    {
+      "number": 20,
+      "summary": "Change number 0 is done.",
+      "url": "https://github.com/demo-org/demo-repo/pull/20"
+    },
+    {
+      "number": 21,
+      "summary": "Change number 1 is done.",
+      "url": "https://github.com/demo-org/demo-repo/pull/21"
+    },
+    {
+      "number": 22,
+      "summary": "Change number 2 is done.",
+      "url": "https://github.com/demo-org/demo-repo/pull/22"
+    },
+    {
+      "number": 23,
+      "summary": "Change number 3 is done.",
+      "url": "https://github.com/demo-org/demo-repo/pull/23"
+    },
+    {
+      "number": 24,
+      "summary": "Change number 4 is done.",
+      "url": "https://github.com/demo-org/demo-repo/pull/24"
+    },
+    {
+      "number": 25,
+      "summary": "Change number 5 is done.",
+      "url": "https://github.com/demo-org/demo-repo/pull/25"
+    },
+    {
+      "number": 26,
+      "summary": "Change number 6 is done.",
+      "url": "https://github.com/demo-org/demo-repo/pull/26"
+    }
+  ],
+  "approve": [
+    {
+      "number": 40,
+      "spec": "SPEC-0040",
+      "spec_title": "Spec 0",
+      "url": "https://github.com/demo-org/demo-repo/pull/40"
+    },
+    {
+      "number": 41,
+      "spec": "SPEC-0041",
+      "spec_title": "Spec 1",
+      "url": "https://github.com/demo-org/demo-repo/pull/41"
+    },
+    {
+      "number": 42,
+      "spec": "SPEC-0042",
+      "spec_title": "Spec 2",
+      "url": "https://github.com/demo-org/demo-repo/pull/42"
+    },
+    {
+      "number": 43,
+      "spec": "SPEC-0043",
+      "spec_title": "Spec 3",
+      "url": "https://github.com/demo-org/demo-repo/pull/43"
+    },
+    {
+      "number": 44,
+      "spec": "SPEC-0044",
+      "spec_title": "Spec 4",
+      "url": "https://github.com/demo-org/demo-repo/pull/44"
+    },
+    {
+      "number": 45,
+      "spec": "SPEC-0045",
+      "spec_title": "Spec 5",
+      "url": "https://github.com/demo-org/demo-repo/pull/45"
+    }
+  ],
+  "counts": {
+    "review": 0,
+    "fix": 0,
+    "ci-red": 0,
+    "conflict": 0,
+    "approve": 6,
+    "ready": 7
+  }
+}
