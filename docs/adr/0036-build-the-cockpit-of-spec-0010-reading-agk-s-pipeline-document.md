@@ -1,6 +1,6 @@
 # ADR-0036: Build the cockpit of SPEC-0010, reading agk's pipeline document
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-26
 - Deciders: maintainers
 - Related: ADR-0033, ADR-0034, ADR-0035
