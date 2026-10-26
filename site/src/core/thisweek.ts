@@ -232,6 +232,19 @@ function needsPart(groups: ReportGroup[]): string {
 
 // The totals item as its five tiles (six for schema 2, which carries the count of changes without known hours, seven for schema 3, which adds the count of changes without known review rounds), each a fixed phrase over one field of the item (SPEC-0005 rule 10, Amendment 8). The
 // numbers are placed as the data holds them; an unknown value reads "not known yet" in its tile.
+// The shadow review of schema 7, as the data holds it: the conductor's catch rate of the week and in total, and the heads
+// reviewed twice; "not-running" and "unknown" are one tile each. Nothing is computed (the catch rate is the data's string).
+function shadowTiles(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (value === "not-running") return ["Second review: not running"];
+  if (typeof value !== "object" || value === null) return ["Second review: not known yet"];
+  const side = (key: "week" | "total", when: string): string => {
+    const counts = (value as Record<string, Record<string, unknown>>)[key] as Record<string, unknown>;
+    return `Conductor catch rate ${when}: ${escapeText(String(counts["catch_rate"]))} (${plural(counts["heads"] as number, "change", "changes")} reviewed twice)`;
+  };
+  return [side("week", "this week"), side("total", "in total")];
+}
+
 function totalsTiles(item: ReportItem): string[] {
   const merged = item["merged"] as number;
   const rounds = item["fix_verdicts"];
@@ -248,6 +261,7 @@ function totalsTiles(item: ReportItem): string[] {
     `estimate: ${range}`,
     ...(item["usage"] === undefined ? [] : [`usage in total: ${tokens(item["usage"])}`]),
     ...(typeof item["usage_reported"] === "number" ? [`${plural(item["usage_reported"], "pull request", "pull requests")} reported a usage figure`] : []),
+    ...shadowTiles(item["shadow"]),
   ];
 }
 
