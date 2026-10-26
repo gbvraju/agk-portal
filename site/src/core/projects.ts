@@ -2,6 +2,7 @@
 // the installations GitHub lists for the signed-in person with the person's own token. The list is never a file, and a
 // repository that GitHub does not return for this person is never listed, named or counted.
 import { readFacts, type FactsResult } from "./facts.ts";
+import { readPipeline, type PipelineResult } from "./pipeline.ts";
 import { UNKNOWN_REPOSITORY_REASON, thisWeekSection } from "./thisweek.ts";
 import type { GithubClient } from "./github.ts";
 
@@ -122,4 +123,16 @@ export async function listProjectCards(github: GithubClient, token: string, now:
   const list = await listProjects(github, token, now);
   if (list.kind === "unreadable") return [`<p>${PROJECTS_UNREADABLE_PHRASE}</p>`];
   return [...list.notices, ...list.projects.map((p) => factsCard(p.name, p.result))];
+}
+
+// The projects of the cockpit (SPEC-0010 rule 1): the pipeline document of every repository the person can read, each read on
+// its own so that one failure is that project's alone.
+export type CockpitProjects = { kind: "unreadable" } | { kind: "ok"; notices: string[]; projects: { name: string; result: PipelineResult }[] };
+
+export async function listCockpit(github: GithubClient, token: string, now: number): Promise<CockpitProjects> {
+  const listing = await listReadableRepositories(github, token);
+  if (listing.kind === "unknown") return { kind: "unreadable" };
+  const notices = listing.refused.map((account) => `<p>${permissionsRefusedLine(account)}</p>`);
+  const projects = await Promise.all(listing.repositories.map(async (name) => ({ name, result: await readPipeline(github, token, name, now) })));
+  return { kind: "ok", notices, projects };
 }

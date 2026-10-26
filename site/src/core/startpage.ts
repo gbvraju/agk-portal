@@ -74,6 +74,7 @@ const GROUPS: [Group, string][] = [
   ["unknown", "Not known yet"],
 ];
 
+const COCKPIT_LINK = '<p class="back"><a href="/cockpit">Cockpit</a></p>';
 const SIGN_OUT = '<form method="post" action="/signout"><button type="submit">Sign out</button></form>';
 
 // The query of the find form: trimmed, cut at MAX_QUERY characters, compared ignoring case.
@@ -86,7 +87,7 @@ export function startPageBody(list: ProjectList, now: number, rawQuery: string |
   const find =
     `<form method="get" action="/" class="find">\n<label for="q">Find a project</label>\n<input type="text" id="q" name="q" value="${escapeText(query)}" maxlength="${MAX_QUERY}">\n` +
     `<button type="submit">Find</button>\n</form>`;
-  const head = `<h1>Your projects</h1>`;
+  const head = `<h1>Your projects</h1>\n${COCKPIT_LINK}`;
   if (list.kind === "unreadable") return `${head}\n<p>${PROJECTS_UNREADABLE_PHRASE}</p>\n${SIGN_OUT}`;
   const notices = list.notices.join("\n");
   // A refused installation is said, and is not an empty list.
@@ -103,5 +104,5 @@ export function startPageBody(list: ProjectList, now: number, rawQuery: string |
 
 // The page of one project: its This week (today's card) and the link back to the list (SPEC-0009 rule 5).
 export function projectPageBody(name: string, result: FactsResult): string {
-  return `<p class="back"><a href="/">All projects</a></p>\n${factsCard(name, result)}\n${SIGN_OUT}`;
+  return `<p class="back"><a href="/">All projects</a></p>\n${COCKPIT_LINK}\n${factsCard(name, result)}\n${SIGN_OUT}`;
 }

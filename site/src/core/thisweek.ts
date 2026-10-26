@@ -15,7 +15,7 @@ export function openingPhrase(report: Pick<ReportDocument, "week" | "opening">):
 }
 
 // An address from the data is shown only if it is on github.com and holds nothing that could end an attribute or a tag.
-function githubAddress(url: unknown): string | undefined {
+export function githubAddress(url: unknown): string | undefined {
   return typeof url === "string" && url.startsWith("https://github.com/") && /^[A-Za-z0-9._~:/?#@!$&()*+,;=%\[\]-]+$/.test(url) ? url : undefined;
 }
 

@@ -48,6 +48,14 @@ async function inflate(data: Uint8Array, expected: number): Promise<Uint8Array |
 // or deflated, within its size cap, size and checksum right). A duplicate, a missing `facts.json` and any other entry
 // refuse the whole archive.
 export async function readArchive(bytes: Uint8Array): Promise<{ facts: Uint8Array; report: Uint8Array | undefined } | undefined> {
+  const entries = await readEntries(bytes, FILES);
+  const facts = entries?.get(FACTS);
+  return entries === undefined || facts === undefined ? undefined : { facts, report: entries.get("report.json") };
+}
+
+// The entries of an archive whose every entry is one of `allowed` (each at most once, each checked as above); undefined for
+// anything else, an empty archive included.
+export async function readEntries(bytes: Uint8Array, allowed: readonly string[]): Promise<Map<string, Uint8Array> | undefined> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let end = -1;
   for (let at = bytes.length - 22; at >= Math.max(0, bytes.length - 22 - 0xffff); at -= 1) {
@@ -59,11 +67,9 @@ export async function readArchive(bytes: Uint8Array): Promise<{ facts: Uint8Arra
   if (end < 0) return undefined;
   const entries = view.getUint16(end + 10, true);
   const directoryOffset = view.getUint32(end + 16, true);
-  if (entries < 1 || entries > FILES.length || directoryOffset === 0xffffffff) return undefined;
+  if (entries < 1 || entries > allowed.length || directoryOffset === 0xffffffff) return undefined;
   let at = directoryOffset;
-  const seen = new Set<string>();
-  let facts: Uint8Array | undefined;
-  let report: Uint8Array | undefined;
+  const found = new Map<string, Uint8Array>();
   for (let n = 0; n < entries; n += 1) {
     if (at + 46 > end || view.getUint32(at, true) !== CENTRAL_SIGNATURE) return undefined;
     const flags = view.getUint16(at + 8, true);
@@ -76,8 +82,7 @@ export async function readArchive(bytes: Uint8Array): Promise<{ facts: Uint8Arra
     const next = at + 46 + nameLength + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
     if (next > end) return undefined;
     const name = new TextDecoder().decode(bytes.subarray(at + 46, at + 46 + nameLength));
-    if (!(FILES as readonly string[]).includes(name) || seen.has(name)) return undefined;
-    seen.add(name);
+    if (!allowed.includes(name) || found.has(name)) return undefined;
     if ((flags & 1) !== 0 || size > MAX_FACTS_BYTES || (method !== 0 && method !== 8)) return undefined;
     if (localOffset + 30 > bytes.length || view.getUint32(localOffset, true) !== LOCAL_SIGNATURE) return undefined;
     const start = localOffset + 30 + view.getUint16(localOffset + 26, true) + view.getUint16(localOffset + 28, true);
@@ -85,9 +90,8 @@ export async function readArchive(bytes: Uint8Array): Promise<{ facts: Uint8Arra
     const stored = bytes.subarray(start, start + compressed);
     const content = method === 0 ? (stored.length === size ? stored : undefined) : await inflate(stored, size);
     if (content === undefined || crc32(content) !== crc) return undefined;
-    if (name === FACTS) facts = content;
-    else report = content;
+    found.set(name, content);
     at = next;
   }
-  return at === end && facts !== undefined ? { facts, report } : undefined;
+  return at === end ? found : undefined;
 }

@@ -179,9 +179,9 @@ input{flex:1 1 auto;min-width:0;min-height:44px;padding:0 12px;border:1px solid 
 .projects{margin:0;padding:0;list-style:none;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
 .project{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-top:1px solid var(--border)}
 .project:first-child{border-top:0}
-.weeklabel,.reason{color:var(--muted)}
-.figure{white-space:nowrap}
-.zero{color:var(--muted)}
+.weeklabel,.reason,.asof{color:var(--muted)}
+.figure,.count{white-space:nowrap}
+.zero,.quiet{color:var(--muted)}
 .pill{display:inline-block;padding:0 10px;border-radius:999px;font-size:.85rem;font-weight:700;line-height:1.7}
 .pill.done{background:var(--done-bg);color:var(--done-fg)}
 .pill.decide{background:var(--decide-bg);color:var(--decide-fg)}

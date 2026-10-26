@@ -29,59 +29,61 @@ const MAX_PAGES = 10;
 // The archive of the facts document and the report is small (two entries of at most one megabyte each, and their headers); a larger answer is not read.
 const MAX_ARCHIVE_BYTES = 3 * MAX_FACTS_BYTES;
 
-class Stop extends Error {
-  constructor(readonly result: FactsResult) {
+// A read that ended with a reason; the one who reads the artifact says it as its own result.
+export class Stop extends Error {
+  constructor(readonly reason: string) {
     super("stop");
   }
 }
 
-interface Candidate {
+export interface Candidate {
   id: number;
   week: string;
   created: number;
 }
 
-async function send<T>(request: () => Promise<T>): Promise<T> {
+export async function send<T>(request: () => Promise<T>): Promise<T> {
   try {
     return await request();
   } catch {
-    throw new Stop(unknown(REQUEST_FAILED_REASON));
+    throw new Stop(REQUEST_FAILED_REASON);
   }
 }
 
-async function candidates(github: GithubClient, token: string, repository: string, now: number): Promise<Candidate[]> {
+// The unexpired artifacts of a repository whose name `pick` gives a key (the week of a facts artifact); the others are skipped.
+export async function listArtifacts(github: GithubClient, token: string, repository: string, now: number, pick: (name: string) => string | undefined): Promise<Candidate[]> {
   const found: Candidate[] = [];
   let seen = 0;
   for (let page = 1; page <= MAX_PAGES; page += 1) {
     const response = await send(() => github.get(`/repos/${repository}/actions/artifacts?per_page=${PER_PAGE}&page=${page}`, token));
-    if (!response.ok) throw new Stop(unknown(statusReason(response.status)));
+    if (!response.ok) throw new Stop(statusReason(response.status));
     let body: unknown;
     try {
       body = await response.json();
     } catch {
-      throw new Stop(unknown(MALFORMED_LIST_REASON));
+      throw new Stop(MALFORMED_LIST_REASON);
     }
-    if (typeof body !== "object" || body === null) throw new Stop(unknown(MALFORMED_LIST_REASON));
+    if (typeof body !== "object" || body === null) throw new Stop(MALFORMED_LIST_REASON);
     const record = body as Record<string, unknown>;
     const items = record["artifacts"];
-    if (!Array.isArray(items)) throw new Stop(unknown(MALFORMED_LIST_REASON));
+    if (!Array.isArray(items)) throw new Stop(MALFORMED_LIST_REASON);
     seen += items.length;
     for (const item of items) {
       const entry = typeof item === "object" && item !== null ? (item as Record<string, unknown>) : {};
-      const week = typeof entry["name"] === "string" ? FACTS_NAME.exec(entry["name"])?.[1] : undefined;
+      const week = typeof entry["name"] === "string" ? pick(entry["name"]) : undefined;
       if (week === undefined) continue;
       const created = typeof entry["created_at"] === "string" ? Date.parse(entry["created_at"]) : Number.NaN;
       const expires = entry["expires_at"] === undefined ? Number.POSITIVE_INFINITY : typeof entry["expires_at"] === "string" ? Date.parse(entry["expires_at"]) : Number.NaN;
       const id = entry["id"];
       if (typeof entry["expired"] !== "boolean" || typeof id !== "number" || !Number.isInteger(id) || Number.isNaN(created) || Number.isNaN(expires)) {
-        throw new Stop(unknown(MALFORMED_LIST_REASON));
+        throw new Stop(MALFORMED_LIST_REASON);
       }
       if (!entry["expired"] && expires > now) found.push({ id, week, created });
     }
     const total = record["total_count"];
     if (items.length === 0 || (typeof total === "number" && seen >= total)) return found;
   }
-  throw new Stop(unknown(LISTING_INCOMPLETE_REASON));
+  throw new Stop(LISTING_INCOMPLETE_REASON);
 }
 
 // The latest week, then the newest artifact of that week (Q-S0001-2).
@@ -93,21 +95,21 @@ function latest(found: Candidate[]): Candidate | undefined {
   return best;
 }
 
-async function download(github: GithubClient, token: string, repository: string, id: number): Promise<Uint8Array> {
+export async function downloadArchive(github: GithubClient, token: string, repository: string, id: number): Promise<Uint8Array> {
   const redirect = await send(() => github.get(`/repos/${repository}/actions/artifacts/${id}/zip`, token));
-  if (redirect.status !== 302) throw new Stop(unknown(statusReason(redirect.status)));
+  if (redirect.status !== 302) throw new Stop(statusReason(redirect.status));
   const location = redirect.headers.get("location");
   let target: URL;
   try {
     target = new URL(location ?? "");
   } catch {
-    throw new Stop(unknown(REQUEST_FAILED_REASON));
+    throw new Stop(REQUEST_FAILED_REASON);
   }
   // The signed address is fetched without any credential; the guard refuses anything but a plain https address.
   const answer = await send(() => github.getSigned(target.href));
-  if (!answer.ok) throw new Stop(unknown(statusReason(answer.status)));
+  if (!answer.ok) throw new Stop(statusReason(answer.status));
   const bytes = await send(() => readLimited(answer, MAX_ARCHIVE_BYTES));
-  if (bytes === undefined) throw new Stop(unknown(ARCHIVE_REASON));
+  if (bytes === undefined) throw new Stop(ARCHIVE_REASON);
   return bytes;
 }
 
@@ -161,15 +163,15 @@ function reportOf(content: Uint8Array | undefined, week: string): ReportOutcome 
 export async function readFacts(github: GithubClient, token: string, repository: string, now: number): Promise<FactsResult> {
   if (!REPOSITORY.test(repository)) throw new Error("the request is not allowed (address)");
   try {
-    const chosen = latest(await candidates(github, token, repository, now));
+    const chosen = latest(await listArtifacts(github, token, repository, now, (name) => FACTS_NAME.exec(name)?.[1]));
     if (chosen === undefined) return unknown(NO_ARTIFACT_REASON);
-    const archive = await readArchive(await download(github, token, repository, chosen.id));
+    const archive = await readArchive(await downloadArchive(github, token, repository, chosen.id));
     if (archive === undefined) return unknown(ARCHIVE_REASON);
     const parsed = parse(archive.facts);
     if ("reason" in parsed) return unknown(parsed.reason);
     return { kind: "facts", week: chosen.week, document: parsed.document, report: reportOf(archive.report, chosen.week) };
   } catch (error) {
-    if (error instanceof Stop) return error.result;
+    if (error instanceof Stop) return unknown(error.reason);
     return unknown(REQUEST_FAILED_REASON);
   }
 }
