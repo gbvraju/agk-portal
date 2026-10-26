@@ -163,7 +163,7 @@ test("REQ-105 AC8: the new fields belong to schema 6 only: schemas 1 to 5 refuse
   plain.schema = 6;
   assert.equal(parseReport(JSON.stringify(plain)), undefined, "schema 5's content under the number 6 lacks the new fields");
   const seven = clone(document);
-  seven.schema = 7;
+  seven.schema = 8;
   assert.equal(parseReport(JSON.stringify(seven)), undefined);
   assert.match(await cardOf(facts, seven), new RegExp(`not known yet: ${UNKNOWN_SCHEMA_REASON}\\.`));
 });
