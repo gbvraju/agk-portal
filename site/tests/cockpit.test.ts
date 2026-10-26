@@ -206,15 +206,28 @@ test("REQ-110 AC3: In the pipeline: one strip per project with the six counts in
   assert.doesNotMatch(part(page, "In the pipeline"), /pull\/\d+/, "a count, not a list");
 });
 
-test("REQ-110 AC3: a count of 0 is a known value, shown muted by the class the stylesheet mutes, and a count above 0 or unknown is never muted", async () => {
+test("REQ-110 AC3: a count of 0 is a known value, shown muted on every width, and a count above 0 or unknown is never muted", async () => {
   const page = await pageOf(ok([{ name: "demo-org/demo-repo", result: found(fixture("busy")) }, { name: "demo-org/other", result: found(fixture("unreadable")) }]));
   const strip = lines(part(page, "In the pipeline"))[0] as string;
-  const spans = [...strip.matchAll(/<span class="count( zero)?">(.*?)<\/span>/g)].map((m) => [m[1] !== undefined, textOf(m[2] as string)]);
-  assert.deepEqual(spans, [[false, "review 2,"], [false, "fix 1,"], [true, "ci red 0,"], [true, "conflict 0,"], [false, "approve 1,"], [false, "ready 2"]]);
+  const spans = [...strip.matchAll(/<span class="count( quiet)?">(.*?)<\/span>/g)].map((m) => [m[1] !== undefined, (m[2] as string).replace(/&nbsp;/g, " ")]);
+  assert.deepEqual(spans, [[false, "review 2"], [false, ", fix 1"], [true, ", ci red 0"], [true, ", conflict 0"], [false, ", approve 1"], [false, ", ready 2"]], "each separator belongs to the count it comes before");
   const unknown = lines(part(page, "In the pipeline"))[1] as string;
-  assert.doesNotMatch(unknown, /class="count zero"/);
+  assert.doesNotMatch(unknown, /class="count quiet"/);
   const css = await (await createApp(createCore({ config, now: () => NOW }))(new Request("https://portal.example/style.css"))).text();
-  assert.match(css, /\.zero\{display:none\}/, "hidden below 600px, as SPEC-0009 rule 4");
+  assert.match(css, /\.quiet\{color:var\(--muted\)\}/, "muted by the stylesheet");
+  assert.doesNotMatch(strip, /class="[^"]*\bzero\b/, "the strip's zeros are never the class the stylesheet hides on a phone");
+});
+
+test("REQ-110 AC3: no stray punctuation: a 0 as the first or the last count leaves no leading or trailing comma, in the text or in the markup", async () => {
+  for (const [name, counts] of [["last", { review: 3, fix: 2, "ci-red": 1, conflict: 4, approve: 5, ready: 0 }], ["first", { review: 0, fix: 2, "ci-red": 1, conflict: 4, approve: 5, ready: 6 }], ["all", { review: 0, fix: 0, "ci-red": 0, conflict: 0, approve: 0, ready: 0 }]] as const) {
+    const doc = clone(fixture("quiet"));
+    doc.counts = counts;
+    const strip = lines(part(await pageOf(ok([{ name: "demo-org/demo-repo", result: found(doc) }])), "In the pipeline"))[0] as string;
+    const text = textOf(strip);
+    assert.doesNotMatch(text, /,\s*as of|,\s*,|:\s*,/, `${name}: no comma before as of, doubled or after the colon`);
+    const hidden = [...strip.matchAll(/<span class="[^"]*\bzero\b[^"]*">/g)];
+    assert.equal(hidden.length, 0, `${name}: nothing in the strip is hidden, so nothing can leave a separator behind`);
+  }
 });
 
 test("REQ-110 AC4: when nothing waits each empty part says so, and a project with nothing waiting is in the strip only", async () => {
