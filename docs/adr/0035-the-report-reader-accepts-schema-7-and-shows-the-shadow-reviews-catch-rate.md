@@ -1,6 +1,6 @@
 # ADR-0035: The report reader accepts schema 7 and shows the shadow review's catch rate
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-26
 - Deciders: maintainers
 - Related: ADR-0019, ADR-0031, ADR-0032
