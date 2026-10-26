@@ -1,6 +1,6 @@
 # ADR-0037: Upgrade agk from 0.55.0 to 0.56.0 and give the staging Worker a previews table
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-26
 - Deciders: maintainers
 - Related: ADR-0016, ADR-0034
