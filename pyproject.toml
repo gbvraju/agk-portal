@@ -1,8 +1,17 @@
+# This repository is not a Python package: the kit's scripts are run in place. The build system and the empty package list
+# let a Python install of the repository root (which a hosting provider's build may try, ADR-0037) succeed and install nothing.
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "agk-portal"
 version = "0.0.0"
 requires-python = ">=3.11"
 dependencies = []
+
+[tool.setuptools]
+packages = []
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
