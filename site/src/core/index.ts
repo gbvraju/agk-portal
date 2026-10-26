@@ -16,10 +16,14 @@ export {
   statusReason,
 } from "./facts.ts";
 export type { FactsResult, ReportOutcome } from "./facts.ts";
+export { parsePipeline, readPipeline, NO_PIPELINE_REASON, PIPELINE_SCHEMA_REASON, PIPELINE_UNREADABLE_REASON } from "./pipeline.ts";
+export type { PipelineDocument, PipelineResult } from "./pipeline.ts";
+export { COCKPIT_TITLE, NOTHING_WAITS_PHRASE, cockpitBody } from "./cockpit.ts";
+export type { CockpitList } from "./cockpit.ts";
 export { parseReport } from "./report.ts";
 export type { ReportDocument, ReportItem } from "./report.ts";
 export { DIRTY_NOTICE_PHRASE, NO_REPORT_REASON, REPORT_UNREADABLE_REASON, UNKNOWN_REPOSITORY_REASON, UNKNOWN_SCHEMA_REASON, openingPhrase, thisWeekSection } from "./thisweek.ts";
-export { PROJECTS_UNREADABLE_PHRASE, factsCard, findProject, listProjectCards, listProjects, listReadableRepositories, permissionsRefusedLine } from "./projects.ts";
+export { PROJECTS_UNREADABLE_PHRASE, factsCard, findProject, listCockpit, listProjectCards, listProjects, listReadableRepositories, permissionsRefusedLine } from "./projects.ts";
 export type { Listing, ProjectList, ProjectLookup } from "./projects.ts";
 export { MAX_QUERY, NO_COUNTS_REASON, NO_MATCH_PHRASE, isoWeekLabel, staleReason } from "./startpage.ts";
 export { SESSION_COOKIE, SESSION_MAX_MS, completeSignIn, openSession, sealPlaintext, sealSession, sessionCookie } from "./session.ts";

@@ -4,7 +4,8 @@ import { clearCookie, readCookie } from "./cookies.ts";
 import type { GithubClient } from "./github.ts";
 import type { Core } from "./index.ts";
 import { htmlPage, notFoundPage, safely, stylesheet, withCookies } from "./responses.ts";
-import { PROJECTS_UNREADABLE_PHRASE, findProject, listProjects, type ProjectList, type ProjectLookup } from "./projects.ts";
+import { cockpitBody, COCKPIT_TITLE, type CockpitList } from "./cockpit.ts";
+import { PROJECTS_UNREADABLE_PHRASE, findProject, listCockpit, listProjects, type ProjectList, type ProjectLookup } from "./projects.ts";
 import { EMPTY_LIST_PHRASE, projectPageBody, startPageBody } from "./startpage.ts";
 import { SESSION_COOKIE, completeSignIn, openSession, type Session } from "./session.ts";
 import { OFFER_HTML, SESSION_ENDED_PHRASE, STATE_COOKIE, offerPage, refusal, startSignIn, verifyCallback } from "./signin.ts";
@@ -19,6 +20,8 @@ export interface AppOptions {
   projects?: (token: string) => Promise<ProjectList>;
   // One project of the person's list; by default read from GitHub (the list first, the facts only of a listed project).
   project?: (token: string, name: string) => Promise<ProjectLookup>;
+  // The pipeline document of every project of the person's list (the cockpit); by default read from GitHub.
+  cockpit?: (token: string) => Promise<CockpitList>;
 }
 
 type Reading = { kind: "none" } | { kind: "invalid" } | { kind: "valid"; session: Session };
@@ -54,6 +57,7 @@ export function createApp(core: Core, options: AppOptions = {}): (request: Reque
   const complete = options.complete ?? (github ? (code: string) => completeSignIn(core, github, code) : async () => refusal({ kind: "token", error: "unknown" }));
   const projects = options.projects ?? (github ? (token: string) => listProjects(github, token, core.now()) : async (): Promise<ProjectList> => ({ kind: "ok", notices: [], projects: [] }));
   const project = options.project ?? (github ? (token: string, name: string) => findProject(github, token, name, core.now()) : async (): Promise<ProjectLookup> => ({ kind: "missing" }));
+  const cockpit = options.cockpit ?? (github ? (token: string) => listCockpit(github, token, core.now()) : async (): Promise<CockpitList> => ({ kind: "ok", notices: [], projects: [] }));
   return safely(async (request) => {
     const path = new URL(request.url).pathname;
     if (request.method === "POST" && path === "/signout") {
@@ -72,6 +76,14 @@ export function createApp(core: Core, options: AppOptions = {}): (request: Reque
           return htmlPage("Sign in", `<p>${SESSION_ENDED_PHRASE}</p>\n${OFFER_HTML}`, 200, [clearCookie(SESSION_COOKIE)]);
         }
         return htmlPage("Your projects", startPageBody(await projects(reading.session.token), core.now(), new URL(request.url).searchParams.get("q")));
+      }
+      case "/cockpit": {
+        const reading = await readSession(request, core);
+        if (reading.kind === "none") return offerPage(request);
+        if (reading.kind === "invalid") {
+          return htmlPage("Sign in", `<p>${SESSION_ENDED_PHRASE}</p>\n${OFFER_HTML}`, 200, [clearCookie(SESSION_COOKIE)]);
+        }
+        return htmlPage(COCKPIT_TITLE, cockpitBody(await cockpit(reading.session.token)));
       }
       case "/login":
         return startSignIn(core.settings);

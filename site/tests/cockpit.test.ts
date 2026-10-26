@@ -312,7 +312,7 @@ test("REQ-110 AC6: the cockpit reads only the person's list: a project the perso
   const cookie = await sealSession({ token: TOKEN, expiresAt: NOW + 3_600_000 }, KEY);
   const page = await (await app(new Request("https://portal.example/cockpit", { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }))).text();
   assert.match(part(page, "Needs your merge"), /acme\/api/);
-  assert.match(part(page, "Needs your merge"), /acme\/web: not known yet: GitHub answered 500\./, "the failing project is its own line");
+  assert.ok(lines(part(page, "Needs your merge")).map(textOf).includes("acme/web: not known yet: GitHub answered 500."), "the failing project is its own line");
   assert.doesNotMatch(page, /acme\/secret/);
   assert.ok(log.every((l) => l.startsWith("GET ")), "reads only");
   assert.equal(log.filter((l) => l.includes("acme/api/actions/artifacts?")).length, 1, "one listing for each project");
@@ -329,7 +329,7 @@ test("REQ-110 AC6: a person whose projects cannot be listed, and one with none, 
 test("REQ-110 AC8: the cockpit is linked from the start page and from a project's page, and its title and heading are Cockpit", async () => {
   const app = createApp(createCore({ config, now: () => NOW }), {
     projects: async () => ({ kind: "ok", notices: [], projects: [] }),
-    project: async () => ({ kind: "unreadable" }),
+    project: async () => ({ kind: "found", result: { kind: "unknown", reason: "no facts artifact exists for its latest week" } }),
   });
   const cookie = await sealSession({ token: TOKEN, expiresAt: NOW + 3_600_000 }, KEY);
   const get = async (path: string): Promise<string> => (await app(new Request(`https://portal.example${path}`, { headers: { cookie: `${SESSION_COOKIE}=${cookie}` } }))).text();
