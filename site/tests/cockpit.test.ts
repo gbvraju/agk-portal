@@ -230,7 +230,7 @@ test("REQ-110 AC3: no stray punctuation: no count's span starts with a comma, th
     assert.equal(spans.length, 6, name);
     assert.ok(spans.every((t) => !t.startsWith(",") && !t.startsWith(" ")), `${name}: no count starts with a comma or a space`);
     assert.ok(spans.slice(0, 5).every((t) => t.endsWith(",")) && !(spans[5] as string).endsWith(","), `${name}: each count but the last ends with its comma`);
-    assert.equal((strip.match(/\sas of\s/g) ?? []).length, 1);
+    assert.equal((strip.match(/as of <time/g) ?? []).length, 1);
     const hidden = [...strip.matchAll(/<span class="[^"]*\bzero\b[^"]*">/g)];
     assert.equal(hidden.length, 0, `${name}: nothing in the strip is hidden, so nothing can leave a separator behind`);
   }
