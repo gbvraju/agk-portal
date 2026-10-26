@@ -139,7 +139,7 @@ SPEC-0009 is `docs/specs/0009-a-person-with-many-projects-starts-from-one-line-p
 
 SPEC-0010 is `docs/specs/0010-a-person-sees-what-waits-for-them-specs-to-approve-and-pull.md`, applied by ADR-0036.
 
-**Reason.** SPEC-0010 (Approved, #65) said that the schema of the pipeline document was agk's and not written yet, and that the spec would be amended when agk wrote it. agk #227 is merged: the router writes `pipeline.json`, schema 1 (`kit/pipeline-schema.json`), into the artifact `agk-pipeline` after every routing run. The brief of issue #70 asks the cockpit to be built to rules 1 to 10 with that schema named in rule 2. The build also needs four words or cases that the spec does not fix, put as Q-B24-1 on issue #70: the word "Cockpit" for the link, the title and the heading; the summary of the fold of a long list; agk's `unknown` for a spec, a title or a summary; and the comma of a hidden zero.
+**Reason.** SPEC-0010 (Approved, #65) said that the schema of the pipeline document was agk's and not written yet, and that the spec would be amended when agk wrote it. agk #227 is merged: the router writes `pipeline.json`, schema 1 (`kit/pipeline-schema.json`), into the artifact `agk-pipeline` after every routing run. The brief of issue #70 asks the cockpit to be built to rules 1 to 10 with that schema named in rule 2. The build also needs four words or cases that the spec does not fix, put as Q-B24-1 on issue #70: the word "Cockpit" for the link, the title and the heading; the summary of the fold of a long list; agk's `unknown` for a spec, a title or a summary; and the zero counts of the strip (the conductor answered that no stray comma may be shown).
 
 **Old text and new text.** (the words that change; the rest of each paragraph is as it is)
 
@@ -148,5 +148,6 @@ SPEC-0010 is `docs/specs/0010-a-person-sees-what-waits-for-them-specs-to-approve
 3. Rule 4: the case of agk's `unknown` is stated: with a title the title line, with a title of `unknown` and a `SPEC-dddd` the fallback line, with both `unknown` the line "A spec waiting for approval could not be read: not known yet." linked to the pull request. A `summary` of `unknown` is the fallback of rule 3.
 4. Rule 9: the fold of a long list has the summary "{project} ({n})".
 5. Rule 10: the phrases "Cockpit", "All projects", "A spec waiting for approval could not be read: not known yet." and "{project} ({n})" are added.
-6. Tests: a line for rule 2 is added (REQ-110 AC4 and AC6) and the line for rule 4 states the three forms.
-7. Residual: the pipeline document exists, but a project shows it only after it has the kit version whose router publishes it; and a 0 hidden on a phone can leave a comma after the last visible count of the strip.
+6. Rule 5: a count of 0 is shown muted on every width, not hidden on a phone as SPEC-0009 rule 4 does, because a hidden count would leave its separator behind; each separator belongs to the count it comes before (the first count has none, each later count starts with ", "). This is the fallback the conductor named in the answer to Q-B24-1 item 4, since hiding a leading separator by CSS alone cannot be done cleanly within SPEC-0008.
+7. Tests: a line for rule 2 is added (REQ-110 AC4 and AC6), the line for rule 4 states the three forms and the line for rule 5 states the zero.
+8. Residual: the pipeline document exists, but a project shows it only after it has the kit version whose router publishes it.

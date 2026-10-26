@@ -56,9 +56,10 @@ function strip(name: string, document: PipelineDocument): string {
   const spans = COUNT_LABELS.map((key, n) => {
     const value = document.counts[key];
     const shown = value === "unknown" ? NOT_KNOWN : String(value);
-    return `<span class="count${value === 0 ? " zero" : ""}">${labels[key]} ${shown}${n < COUNT_LABELS.length - 1 ? "," : ""}</span>`;
+    // The separator belongs to the count it comes before, so no count leaves a stray comma; a 0 is muted and never hidden.
+    return `<span class="count${value === 0 ? " quiet" : ""}">${n === 0 ? "" : ", "}${labels[key]} ${shown}</span>`;
   });
-  return `<li>${projectLink(name)}: ${spans.join(" ")} ${asOf(document)}</li>`;
+  return `<li>${projectLink(name)}: ${spans.join("")} ${asOf(document)}</li>`;
 }
 
 function part(heading: string, blocks: string[]): string {

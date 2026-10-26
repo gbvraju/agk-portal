@@ -181,7 +181,7 @@ input{flex:1 1 auto;min-width:0;min-height:44px;padding:0 12px;border:1px solid 
 .project:first-child{border-top:0}
 .weeklabel,.reason,.asof{color:var(--muted)}
 .figure,.count{white-space:nowrap}
-.zero{color:var(--muted)}
+.zero,.quiet{color:var(--muted)}
 .pill{display:inline-block;padding:0 10px;border-radius:999px;font-size:.85rem;font-weight:700;line-height:1.7}
 .pill.done{background:var(--done-bg);color:var(--done-fg)}
 .pill.decide{background:var(--decide-bg);color:var(--decide-fg)}
