@@ -20,7 +20,15 @@ import re
 import sys
 from pathlib import Path
 
-from common import CheckError, covered_fix_list, final_commit_problems, git, repo_root, run
+from common import (
+    CheckError,
+    agent_apps,
+    covered_fix_list,
+    final_commit_problems,
+    git,
+    repo_root,
+    run,
+)
 from metrics import counted_authors, latest_verdict_body
 from reviewers import person_approvals, spec_approvers, verdict_authors
 
@@ -85,8 +93,13 @@ def check(
     covered = covered_fix_list(latest_verdict_body(items, authors))
     if covered is not None:
         sha, edits = covered
-        waiting = specs_set_approved(edits) - person_approvals(
-            items, comments_of(reviews) if reviews else [], spec_approvers(root)
+        flipped = specs_set_approved(edits)
+        waiting = flipped - person_approvals(
+            items,
+            comments_of(reviews) if reviews else [],
+            spec_approvers(root),
+            flipped,
+            agent_apps(root),
         )
         if waiting:
             raise CheckError(

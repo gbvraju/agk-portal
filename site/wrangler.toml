@@ -9,3 +9,6 @@ compatibility_date = "2026-10-01"
 workers_dev = true
 # (verify) keep the variables and secrets set in the dashboard when this file is deployed.
 keep_vars = true
+# The build of a pull request runs `npx wrangler preview` (Cloudflare Previews, open beta), which refuses a configuration without this
+# table (ADR-0037). It is empty on purpose: no binding, no route and no account is named here.
+[previews]

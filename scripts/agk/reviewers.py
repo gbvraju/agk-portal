@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import sys
+from datetime import datetime
 
 from common import CheckError, load_config, read_list, repo_root, run
 
@@ -24,6 +25,7 @@ USER_RE = re.compile(r"^@?[A-Za-z0-9_.-]+$")
 AUTHORS = "verdict_authors"
 APPROVERS = "spec_approvers"
 APPROVE = re.compile(r"Approve: ([0-9a-f]{7,40}) (SPEC-\d{4})")
+APPROVE_SHORT = re.compile(r"Approve: (SPEC-\d{4})")  # SPEC-0032 rule 5: pinned by the runs
 PLACEHOLDER = "replace-me"  # the installed handle `@REPLACE-ME`: a login a stranger could own
 
 
@@ -175,26 +177,119 @@ def spec_approvers(root) -> list[str]:
         return []
 
 
+def login_of(item: dict) -> str:
+    user = item.get("user")
+    login = user.get("login") if isinstance(user, dict) else None
+    return login.lower() if isinstance(login, str) else ""
+
+
+def via_agent(item: dict, agent_apps: tuple[str, ...] | list[str]) -> bool:
+    """True when GitHub records that the comment was posted through a listed agent app.
+
+    The field `performed_via_github_app` is set by GitHub when an app posts; an agent that posts
+    through the app can neither remove nor forge it (brief 242)."""
+    app = item.get("performed_via_github_app")
+    slug = app.get("slug") if isinstance(app, dict) else None
+    return isinstance(slug, str) and slug.lower() in {a.lower() for a in agent_apps}
+
+
+def first_line(item: dict) -> str:
+    lines = str(item.get("body") or "").splitlines()
+    return lines[0].strip() if lines else ""
+
+
+def moment(value) -> datetime | None:
+    """A GitHub timestamp such as `2026-10-25T12:00:00Z`, else None."""
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def head_before_comment(runs: list[dict], comment: dict) -> str | None:
+    """The `head_sha` of the latest `pull_request` run created before the comment, else None.
+
+    Both times are set by GitHub when the event happens, so unlike a commit date they are not the
+    author's to choose (SPEC-0032 rule 5, build (g); the verdict on 077895f)."""
+    at = moment(comment.get("created_at"))
+    best: tuple[datetime, str] | None = None
+    for item in runs:
+        if not isinstance(item, dict) or item.get("event") != "pull_request":
+            continue
+        made, sha = moment(item.get("created_at")), item.get("head_sha")
+        if at and made and made < at and isinstance(sha, str) and sha:
+            if best is None or made > best[0]:
+                best = (made, sha)
+    return best[1] if best else None
+
+
 def approval_shas(
-    comments: list[dict], reviews: list[dict], approvers: list[str]
+    comments: list[dict],
+    reviews: list[dict],
+    approvers: list[str],
+    runs: list[dict] | None = None,
+    flipped: tuple[str, ...] | set[str] = (),
+    agent_apps: tuple[str, ...] | list[str] = (),
 ) -> dict[str, list[str]]:
-    """spec -> the shas of the first lines `Approve: <sha> SPEC-<n>` of the comments and review
-    bodies whose author is a listed approver; any other account, line or form counts for nothing."""
+    """spec -> the shas of the texts that a listed approver approved (SPEC-0032 rule 5).
+
+    A first line `Approve: <sha> SPEC-<n>` of a comment or a review body approves the text at the
+    sha. A first line `Approve: SPEC-<n>` of a comment approves the text at the `head_sha` of the
+    latest `pull_request` run of `runs` created before the comment; with no such run it counts for
+    nothing. A review in
+    state `APPROVED` approves, at its own `commit_id`, the spec its first line `Approve: SPEC-<n>`
+    names, else the one spec in `flipped` when there is exactly one. Any other account, line or
+    form counts for nothing.
+
+    Brief 242: a comment posted through an app of `agent_apps` never counts as a person's approval,
+    with one account or several; a review record shows no app, so while `agent_apps` is not empty
+    a review counts for nothing (Q-242-1)."""
     allowed = {a.lstrip("@").lower() for a in approvers}
     found: dict[str, list[str]] = {}
-    for item in [*comments, *reviews]:
-        user = item.get("user")
-        login = user.get("login") if isinstance(user, dict) else None
-        lines = str(item.get("body") or "").splitlines()
-        match = APPROVE.fullmatch(lines[0].strip()) if lines else None
-        if match and isinstance(login, str) and login.lower() in allowed:
-            found.setdefault(match.group(2), []).append(match.group(1))
+
+    def add(spec: str, sha: str | None) -> None:
+        if sha:
+            found.setdefault(spec, []).append(sha)
+
+    for kind, items in (("comment", comments), ("review", reviews)):
+        for item in items:
+            if login_of(item) not in allowed:
+                continue
+            if agent_apps and (kind == "review" or via_agent(item, agent_apps)):
+                continue
+            line = first_line(item)
+            long = APPROVE.fullmatch(line)
+            if long:
+                add(long.group(2), long.group(1))
+                continue
+            named = APPROVE_SHORT.fullmatch(line)
+            if kind == "comment":
+                if named:
+                    add(named.group(1), head_before_comment(runs or [], item))
+            elif item.get("state") == "APPROVED":
+                commit = item.get("commit_id")
+                only = next(iter(flipped)) if len(flipped) == 1 else None
+                spec = named.group(1) if named else only
+                if spec and isinstance(commit, str):
+                    add(spec, commit)
     return found
 
 
-def person_approvals(comments: list[dict], reviews: list[dict], approvers: list[str]) -> set[str]:
+def person_approvals(
+    comments: list[dict],
+    reviews: list[dict],
+    approvers: list[str],
+    flipped: tuple[str, ...] | set[str] = (),
+    agent_apps: tuple[str, ...] | list[str] = (),
+) -> set[str]:
     """The specs a listed approver approved in a comment or a review (SPEC-0032 rule 5)."""
-    return set(approval_shas(comments, reviews, approvers))
+    allowed = {a.lstrip("@").lower() for a in approvers}
+    found = set(approval_shas(comments, reviews, approvers, [], flipped, agent_apps))
+    for item in comments:  # a short line is pinned later, by the runs of check_specs
+        named = APPROVE_SHORT.fullmatch(first_line(item))
+        if named and login_of(item) in allowed and not via_agent(item, agent_apps):
+            found.add(named.group(1))
+    return found
 
 
 def verdict_authors(root) -> list[str]:

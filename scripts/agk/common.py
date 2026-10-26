@@ -183,6 +183,52 @@ def covered_fix_list(body: str) -> tuple[str, list[tuple[str, str | None, str, s
     return (head.group(1), edits) if edits else None
 
 
+NOT_FIX_LIST = (
+    "SPEC-0021 rule 1: a Final: line is read only under 'Verdict: fix list <sha>'; "
+    "write that first line, or leave the Final: line out"
+)
+FINAL_WITH_ITEMS = (
+    "SPEC-0021 rule 1: a Final: line is read only in a fix list with no numbered items; "
+    "post the Final: line in its own verdict once the items are met"
+)
+FINAL_SHAPE = (
+    "SPEC-0021 rule 2: a Final: line reads 'Final: <path> <old> -> <new>', "
+    "with the old and the new status as one word each"
+)
+FINAL_REQUIREMENT = (
+    "SPEC-0021 rule 2: a Final: line for docs/requirements.md reads "
+    "'Final: docs/requirements.md REQ-nnn <old> -> <new>', and no other path names a requirement"
+)
+
+
+def verdict_problem(body: str) -> str | None:
+    """Why the router cannot read the `Final:` lines of a `Verdict:` comment, or None (brief 238).
+
+    The reading `covered_fix_list` applies, as a message that names the rule and shows the shape
+    and never the body: a `Final:` line under a verdict that is not `fix list`, a `Final:` line that
+    does not match `Final: <path> [REQ-n] <old> -> <new>`, a line for `docs/requirements.md`
+    without its requirement id or the reverse, and a `Final:` line in a fix list that also has
+    numbered items (`covered_fix_list` reads no such list; the verdict on 90e5749). A comment
+    that is no verdict and a verdict with no `Final:` line have no problem."""
+    lines = body.splitlines()
+    if not lines or not lines[0].startswith("Verdict:"):
+        return None
+    finals = [line for line in lines if line.startswith("Final:")]
+    if not finals:
+        return None
+    if FIX_LIST.fullmatch(lines[0]) is None:
+        return NOT_FIX_LIST
+    if any(re.match(r"\s*\d+\.", line) for line in lines):  # `covered_fix_list` reads no such list
+        return FINAL_WITH_ITEMS
+    for line in finals:
+        match = FINAL_LINE.fullmatch(line)
+        if match is None:
+            return FINAL_SHAPE
+        if (match.group(1) == REQUIREMENTS) != bool(match.group(2)):
+            return FINAL_REQUIREMENT
+    return None
+
+
 def status_edit(text: str, old: str, new: str, req: str | None = None) -> str | None:
     """`text` with the one `- Status: old` line (of the section `### req`, if given) set to new."""
     lines = text.splitlines(keepends=True)
@@ -399,6 +445,8 @@ DEFAULT_CONFIG = {
     "ac_coverage": "warn",
     "proof_timeout": 900,
     "pr_mode": "strict",
+    "required_checks": ["proof", "governance"],
+    "agent_apps": ["claude"],
 }
 
 
@@ -545,6 +593,29 @@ def pr_mode(root: Path) -> str:
     if value not in PR_MODES:
         raise CheckError("pr_mode must be 'strict' or 'flow' (setting: pr_mode in agk.toml)")
     return value
+
+
+def required_checks(root: Path) -> list[str]:
+    """The checks the router judges (brief 231): names from agk.toml; refusals name the setting."""
+    value = load_config(root)["required_checks"]
+    if (
+        not isinstance(value, list)
+        or not value
+        or not all(isinstance(x, str) and x.strip() for x in value)
+    ):
+        raise CheckError(
+            "required_checks must be a list of check names (setting: required_checks in agk.toml)"
+        )
+    return [x.strip() for x in value]
+
+
+def agent_apps(root: Path) -> list[str]:
+    """The slugs of the GitHub Apps an agent posts through (brief 242): a list of names from
+    agk.toml, empty allowed; an invalid value is refused naming the setting."""
+    value = load_config(root)["agent_apps"]
+    if not isinstance(value, list) or not all(isinstance(x, str) and x.strip() for x in value):
+        raise CheckError("agent_apps must be a list of app slugs (setting: agent_apps in agk.toml)")
+    return [x.strip().lower() for x in value]
 
 
 def json_records(path: Path, label: str) -> list[dict]:
