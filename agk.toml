@@ -1,6 +1,6 @@
 # agk configuration. Read by the checks (earlier installs kept the stamp in pyproject.toml [tool.agk]).
 mode = "init"
-version = "0.55.0"
+version = "0.56.0"
 installed = "2026-10-21"
 default_branch = "main"
 test_dirs = ["site/tests"]

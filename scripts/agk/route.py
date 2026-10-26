@@ -7,22 +7,26 @@
 
 It runs in the workflow `agk-route.yml` on `pull_request`, `issue_comment`, `workflow_run` and
 `push` to the default branch, with the job's `GITHUB_TOKEN`, from a checkout of the default
-branch: it runs no code of a pull request. For each pull request to route it reads the facts
-with GET (the head, the check runs and statuses of the head, `mergeable_state`, the comments,
-the reviews, the changed files) and sets exactly one of the seven labels `agk:ci-running`,
-`agk:ci-red`, `agk:conflict`, `agk:review`, `agk:fix`, `agk:approve`, `agk:ready`, removing the
-other six. When more than one state holds, the first of that list in the order conflict,
-ci-running, ci-red, approve, fix, ready, review wins. A label set with the job's token starts no
-workflow, so the router cannot loop. It writes labels and, for the default branch (SPEC-0032
-rule 7), the one issue `The default branch is red`: on a `push` to the default branch or a
-finished workflow on it, it reads the checks of the branch's head and, when they fail, opens or
-updates that issue as a brief (`Priority: 0`, `Advances: none`) that names the failing check, the
-sha and the run and no cause, and closes it when the branch is green; while checks still run it
-does nothing. No comment, no review, no merge. Messages name the rule, never a value.
+branch: it runs no code of a pull request. For each pull request to route it reads the facts with
+GET (the head, the latest run of each check and the latest status of each context of the head,
+`mergeable_state`, the comments, the reviews, the changed files) and sets exactly one of the seven
+labels `agk:ci-running`, `agk:ci-red`, `agk:conflict`, `agk:review`, `agk:fix`, `agk:approve`,
+`agk:ready`, removing the other six. When more than one state holds, the first of that list in the
+order conflict, ci-running, ci-red, approve, fix, ready, review wins. A label set with the job's
+token starts no workflow, so the router cannot loop. It writes labels and, for the default branch
+(SPEC-0032 rule 7), the one issue `The default branch is red`: on a `push` to the default branch
+or a finished workflow on it, it reads the checks of the branch's head and, when they fail, opens
+or updates that issue as a brief (`Priority: 0`, `Advances: none`) that names the failing check,
+the sha and the run and no cause, and closes it when the branch is green; while checks still run
+it does nothing.
+No review, no merge, and one comment only: the reply `Correction needed:` to a verdict whose
+`Final:` line it cannot read (brief 238). Messages name the rule, never a value.
 """
 
 from __future__ import annotations
 
+import base64
+import datetime
 import json
 import os
 import re
@@ -31,9 +35,19 @@ import sys
 from pathlib import Path
 from urllib.parse import quote
 
-from common import CheckError, load_config, repo_root
+from common import CheckError, agent_apps, load_config, repo_root, required_checks, verdict_problem
 from metrics import counted_authors, covered_head, latest_verdict_body, verdicts
-from reviewers import person_approvals, spec_approvers, verdict_authors
+from reviewers import (
+    APPROVE,
+    APPROVE_SHORT,
+    approval_shas,
+    first_line,
+    login_of,
+    person_approvals,
+    spec_approvers,
+    verdict_authors,
+    via_agent,
+)
 from session import RED_TITLE, gh, is_red, pages, repo_name
 
 NAME = "route"
@@ -61,7 +75,13 @@ COLORS = {
 DESCRIPTIONS = {"agk-brief": "AGK: a brief a builder session can take"}
 FAILED_RUN = {"failure", "timed_out", "cancelled", "action_required", "startup_failure", "stale"}
 FAILED_STATUS = {"failure", "error"}
-ASKED = re.compile(r"Approval: (SPEC-\d{4}) (\S+) Draft -> Approved, waiting for a person")
+ASKED = re.compile(
+    r"Approval: (SPEC-\d{4}) (\S+) Draft -> Approved, waiting for a person"
+    r"(?:: post \"Approve: (SPEC-\d{4})\")?"
+)
+SUMMARY = re.compile(r"Summary: (\S.{0,118}\S|\S)")
+PIPELINE_COUNTS = ("review", "fix", "ci-red", "conflict", "approve", "ready")
+SPEC_TITLE = re.compile(r"# SPEC-\d{4}: (\S.*)")
 SPEC_FILE = re.compile(r"docs/specs/(\d{4})-[^/]+\.md")
 
 
@@ -110,16 +130,72 @@ approved_by_a_person = person_approvals
 
 def asked_for(body: str) -> set[str]:
     """The specs the conductor's `Approval:` lines of a verdict ask a person to approve."""
-    return {m.group(1) for m in map(ASKED.fullmatch, (x.strip() for x in body.splitlines())) if m}
+    found = map(ASKED.fullmatch, (x.strip() for x in body.splitlines()))
+    return {m.group(1) for m in found if m and m.group(3) in (None, m.group(1))}
+
+
+def latest_runs(checks: list[dict]) -> list[dict]:
+    """The latest run of each check name: the highest `id`, the later `started_at` on a tie.
+
+    An older run of a name (a cancelled one, one a newer run replaced) is ignored, as GitHub's
+    required checks ignore it; a latest run that failed or was cancelled still counts. A skipped
+    run (the `push` workflows start jobs of the same names that `if:` skips) is never the latest
+    while the name has a run that was not skipped; a name with only skipped runs keeps its
+    newest."""
+    ran = {str(r.get("name") or "") for r in checks if r.get("conclusion") != "skipped"}
+    kept = [
+        r for r in checks if r.get("conclusion") != "skipped" or str(r.get("name") or "") not in ran
+    ]
+    newest: dict[str, dict] = {}
+    for run in kept:
+        key = str(run.get("name") or "")
+        rank = (run.get("id") or 0, str(run.get("started_at") or ""))
+        held = newest.get(key)
+        if held is None or rank > (held.get("id") or 0, str(held.get("started_at") or "")):
+            newest[key] = run
+    return list(newest.values())
+
+
+def latest_statuses(statuses: list[dict]) -> list[dict]:
+    """The latest status of each context (the highest `id`), as GitHub reads them."""
+    newest: dict[str, dict] = {}
+    for item in statuses:
+        key = str(item.get("context") or "")
+        held = newest.get(key)
+        if held is None or (item.get("id") or 0) > (held.get("id") or 0):
+            newest[key] = item
+    return list(newest.values())
+
+
+def judged(
+    checks: list[dict], statuses: list[dict], required: list[str] | None, wait: bool = True
+) -> tuple[list[dict], list[dict], bool]:
+    """(the latest runs, the latest statuses, whether a required name has not reported).
+
+    With `required` (the `required_checks` of agk.toml) only a run named in it and a status whose
+    context is named in it are judged; a check that is not listed never decides a label. Without
+    it every run and status counts. The router's own job is never judged. With `wait` false (the
+    default branch, where a workflow such as `proof` may never run) a listed name that has not
+    reported is not waited for: the head waits only for the names that have a run or a status."""
+    runs = [c for c in latest_runs(checks) if c.get("name") != ROUTER_JOB]
+    latest = latest_statuses(statuses)
+    if required is None:
+        return runs, latest, False
+    names = {x for x in required if x != ROUTER_JOB}
+    runs = [c for c in runs if c.get("name") in names]
+    latest = [s for s in latest if s.get("context") in names]
+    seen = {c.get("name") for c in runs} | {s.get("context") for s in latest}
+    return runs, latest, wait and bool(names - seen)
 
 
 def decide(f: dict) -> str:
     """The one label of a pull request from its facts; the first state that holds, in order."""
     if f.get("mergeable_state") == "dirty":
         return "agk:conflict"
-    checks = [c for c in f.get("checks") or [] if c.get("name") != ROUTER_JOB]
-    statuses = f.get("statuses") or []
-    if not checks and not statuses:
+    checks, statuses, missing = judged(
+        f.get("checks") or [], f.get("statuses") or [], f.get("required")
+    )
+    if missing or (not checks and not statuses):
         return "agk:ci-running"
     if any(c.get("status") != "completed" for c in checks) or any(
         s.get("state") == "pending" for s in statuses
@@ -135,14 +211,21 @@ def decide(f: dict) -> str:
     listed = verdicts(comments, authors) or []
     kind, sha = listed[-1] if listed else ("", "")
     names_head = bool(sha) and head.startswith(sha)
-    people = approved_by_a_person(comments, f.get("reviews") or [], f.get("approvers") or [])
+    flipped = specs_approved_by(f.get("files") or [])
+    people = approved_by_a_person(
+        comments,
+        f.get("reviews") or [],
+        f.get("approvers") or [],
+        flipped,
+        f.get("agent_apps") or (),
+    )
     if names_head and asked_for(latest_verdict_body(comments, authors)) - people:
         return "agk:approve"
     if names_head and kind in ("fix", "rejected"):
         return "agk:fix"
     covered = covered_head(Held(f.get("commit") or {}), head, comments, authors) == "yes"
     if (names_head and kind == "cleared") or covered:
-        waiting = specs_approved_by(f.get("files") or []) - people
+        waiting = flipped - people
         return "agk:approve" if waiting else "agk:ready"
     return "agk:review"
 
@@ -190,6 +273,8 @@ def read_facts(repo: str, n: int, root: Path) -> tuple[dict, dict] | None:
         "reviews": reviews or [],
         "authors": verdict_authors(root),
         "approvers": spec_approvers(root),
+        "required": required_checks(root),
+        "agent_apps": agent_apps(root),
         "author": (pr.get("user") or {}).get("login"),
         "files": files,
         "commit": commit if isinstance(commit, dict) else {},
@@ -230,6 +315,102 @@ def apply(repo: str, n: int, current: list[str], wanted: str, labels: Labels) ->
             write(f"repos/{repo}/issues/{n}/labels/{quote(name, safe='')}", method="DELETE")
 
 
+CORRECTION = "Correction needed:"
+ANSWERED = re.compile(r"\(verdict comment (\d+)\)")
+
+
+def correct_verdicts(repo: str, n: int, comments: list[dict], authors: list[str] | None) -> None:
+    """Tell the reviewer, once for each verdict comment, that a `Final:` line cannot be read.
+
+    A `Verdict:` comment of a listed author with a problem (`verdict_problem`, brief 238) gets one
+    reply that begins `Correction needed:`, gives the message and names the comment; a reply already
+    there for that comment (found by its marker) means nothing new is posted. The reply is the last
+    write of a routing, and no label depends on it."""
+    allowed = {a.lstrip("@").lower() for a in authors or []}
+    answered = {
+        m.group(1)
+        for c in comments
+        if str(c.get("body") or "").startswith(CORRECTION)
+        for m in [ANSWERED.search(str(c.get("body")))]
+        if m
+    }
+    for c in sorted(comments, key=lambda c: c.get("id") or 0):
+        login = str((c.get("user") or {}).get("login") or "").lower()
+        problem = verdict_problem(str(c.get("body") or "")) if login in allowed else None
+        if problem and str(c.get("id")) not in answered:
+            body = f"{CORRECTION} {problem} (verdict comment {c.get('id')})"
+            write(
+                f"repos/{repo}/issues/{n}/comments",
+                "-f",
+                f"body={body}",
+                method="POST",
+                what="rule 2: a correction",
+            )
+
+
+REFUSED = "an approval posted through an agent's app does not count; the person posts it themselves"
+REFUSED_REVIEW = (
+    "a review does not count as an approval while agent apps are listed, because a review cannot "
+    "show which app posted it; the person posts `Approve: SPEC-<n>` as a comment from their own "
+    "account"
+)
+ANSWERED_APPROVAL = re.compile(r"\(approval (comment|review) (\d+)\)")
+
+
+def correct_approvals(
+    repo: str,
+    n: int,
+    comments: list[dict],
+    reviews: list[dict],
+    approvers: list[str] | None,
+    apps: list[str] | None,
+    flipped: set[str] | None = None,
+) -> None:
+    """Tell the person, once for each comment or review, that their approval does not count
+    (brief 242). A comment of a listed approver whose first line is an `Approve:` line and that
+    GitHub records as posted through an app of `agent_apps` gets one reply that begins
+    `Correction needed:` and names the comment. While `agent_apps` is not empty a review never
+    counts, since it cannot show which app posted it (Q-242-1); a review of a listed approver that
+    would have counted gets one reply that asks for the `Approve: SPEC-<n>` comment. A reply already
+    there for that comment or review (found by its marker) means nothing new is posted. No label
+    depends on it."""
+    if not apps:
+        return
+    allowed = {a.lstrip("@").lower() for a in approvers or []}
+    answered = {
+        (m.group(1), m.group(2))
+        for c in comments
+        if str(c.get("body") or "").startswith(CORRECTION)
+        for m in [ANSWERED_APPROVAL.search(str(c.get("body")))]
+        if m
+    }
+    asked: list[tuple[str, dict, str]] = []
+    for c in comments:
+        line = first_line(c)
+        if (
+            (APPROVE.fullmatch(line) or APPROVE_SHORT.fullmatch(line))
+            and login_of(c) in allowed
+            and via_agent(c, apps)
+        ):
+            asked.append(("comment", c, REFUSED))
+    for r in reviews:
+        if login_of(r) in allowed and approval_shas(
+            [], [r], list(allowed), [], flipped or set(), ()
+        ):
+            asked.append(("review", r, REFUSED_REVIEW))
+    for kind, item, message in sorted(asked, key=lambda a: (a[0], a[1].get("id") or 0)):
+        ident = str(item.get("id") or "")
+        if ident and (kind, ident) not in answered:
+            body = f"{CORRECTION} {message} (approval {kind} {ident})"
+            write(
+                f"repos/{repo}/issues/{n}/comments",
+                "-f",
+                f"body={body}",
+                method="POST",
+                what="rule 2: a correction",
+            )
+
+
 def route_one(repo: str, n: int, root: Path, labels: Labels, dry: bool) -> str | None:
     """Route pull request `n`; its label, or None when it is over; CheckError if unreadable."""
     got = read_facts(repo, n, root)
@@ -242,6 +423,16 @@ def route_one(repo: str, n: int, root: Path, labels: Labels, dry: bool) -> str |
     current = [str(x.get("name")) for x in pr.get("labels") or []]
     if not dry:
         apply(repo, n, current, wanted, labels)
+        correct_verdicts(repo, n, facts.get("comments") or [], facts.get("authors"))
+        correct_approvals(
+            repo,
+            n,
+            facts.get("comments") or [],
+            facts.get("reviews") or [],
+            facts.get("approvers"),
+            facts.get("agent_apps"),
+            specs_approved_by(facts.get("files") or []),
+        )
     changed = [name for name in current if name in LABELS] != [wanted]
     print(f"#{n} {wanted}" + (" (changed)" if changed and not dry else ""))
     return wanted
@@ -250,10 +441,15 @@ def route_one(repo: str, n: int, root: Path, labels: Labels, dry: bool) -> str |
 # --- the default branch (rule 7) ---------------------------------------------------------------
 
 
-def branch_state(checks: list[dict], statuses: list[dict]) -> str:
-    """`pending`, `red` or `green` for the checks of the default branch's head."""
-    checks = [c for c in checks if c.get("name") != ROUTER_JOB]
-    if not checks and not statuses:
+def branch_state(
+    checks: list[dict], statuses: list[dict], required: list[str] | None = None
+) -> str:
+    """`pending`, `red` or `green` for the checks of the default branch's head, judged by the
+    required checks of the project that have a run or a status on that head (brief 231): a listed
+    check that never runs on the default branch is not waited for, and a head none of them has
+    reported is `pending`."""
+    checks, statuses, missing = judged(checks, statuses, required, wait=False)
+    if missing or (not checks and not statuses):
         return "pending"
     if any(c.get("status") != "completed" for c in checks) or any(
         s.get("state") == "pending" for s in statuses
@@ -263,15 +459,22 @@ def branch_state(checks: list[dict], statuses: list[dict]) -> str:
     return "red" if failed or any(s.get("state") in FAILED_STATUS for s in statuses) else "green"
 
 
-def failing(checks: list[dict], statuses: list[dict], repo: str, sha: str) -> tuple[str, str]:
-    """(name, link) of the first failing check by name, or status."""
+def failing(
+    checks: list[dict],
+    statuses: list[dict],
+    repo: str,
+    sha: str,
+    required: list[str] | None = None,
+) -> tuple[str, str]:
+    """(name, link) of the first failing check by name, or status, among the judged ones."""
+    runs, latest, _ = judged(checks, statuses, required, wait=False)
     bad = sorted(
         (str(c.get("name") or ""), str(c.get("html_url") or c.get("details_url") or ""))
-        for c in checks
-        if c.get("name") != ROUTER_JOB and c.get("conclusion") in FAILED_RUN
+        for c in runs
+        if c.get("conclusion") in FAILED_RUN
     ) + sorted(
         (str(s.get("context") or ""), str(s.get("target_url") or ""))
-        for s in statuses
+        for s in latest
         if s.get("state") in FAILED_STATUS
     )
     name, url = bad[0] if bad else ("", "")
@@ -292,7 +495,9 @@ def red_body(name: str, sha: str, url: str) -> str:
     )
 
 
-def route_branch(repo: str, default: str, labels: Labels, dry: bool) -> str:
+def route_branch(
+    repo: str, default: str, labels: Labels, dry: bool, required: list[str] | None = None
+) -> str:
     """Open, update or close the red-branch brief from the checks of the default branch's head."""
     tip = gh(f"repos/{repo}/branches/{default}")
     sha = str(((tip or {}).get("commit") or {}).get("sha") or "") if isinstance(tip, dict) else ""
@@ -302,7 +507,7 @@ def route_branch(repo: str, default: str, labels: Labels, dry: bool) -> str:
     if checks is None or found is None:
         raise CheckError("rule 7: the checks of the default branch cannot be read")
     statuses = status.get("statuses", []) if isinstance(status, dict) else []
-    state = branch_state(checks, statuses)
+    state = branch_state(checks, statuses, required)
     open_red = sorted((i for i in found if is_red(i)), key=lambda i: i["number"])
     print(f"default branch {state}")
     if state == "pending" or dry:
@@ -313,7 +518,7 @@ def route_branch(repo: str, default: str, labels: Labels, dry: bool) -> str:
             args = ("-f", "state=closed", "-f", "state_reason=completed")
             write(f"{issues}/{item['number']}", *args, method="PATCH", what="rule 7: the issue")
         return state
-    name, url = failing(checks, statuses, repo, sha)
+    name, url = failing(checks, statuses, repo, sha, required)
     body = red_body(name, sha, url)
     if open_red:
         if str(open_red[0].get("body") or "") != body:
@@ -371,6 +576,90 @@ def on_default_branch(name: str, event: dict, default: str) -> bool:
     return False
 
 
+# --- the pipeline document (SPEC-0036 rules 2 to 5) --------------------------------------------
+
+
+def summary_of(body: object) -> str:
+    """The sentence of the first `Summary:` line of a pull request body, or `unknown`."""
+    for line in str(body or "").splitlines():
+        found = SUMMARY.fullmatch(line.strip())
+        if found:
+            return found.group(1)
+    return "unknown"
+
+
+def spec_title(repo: str, path: str, head: str) -> str:
+    """The title of the spec file at the head of a pull request, or `unknown`."""
+    if not re.fullmatch(r"docs/specs/\d{4}-[^/]+\.md", path) or not head:
+        return "unknown"
+    record = gh(f"repos/{repo}/contents/{quote(path)}?ref={head}")
+    try:
+        text = base64.b64decode(record["content"]).decode("utf-8")
+    except (KeyError, TypeError, ValueError):
+        return "unknown"
+    found = SPEC_TITLE.match(text.splitlines()[0] if text else "")
+    return found.group(1).strip() if found else "unknown"
+
+
+def approve_items(repo: str, pr: dict, root: Path) -> list[dict]:
+    n = int(pr["number"])
+    url = str(pr.get("html_url") or "")
+    unread = [{"number": n, "spec": "unknown", "spec_title": "unknown", "url": url}]
+    comments = listing(f"repos/{repo}/issues/{n}/comments")
+    if comments is None:
+        return unread
+    body = latest_verdict_body(comments, counted_authors(verdict_authors(root), None))
+    head = str((pr.get("head") or {}).get("sha") or "")
+    found = [ASKED.fullmatch(x.strip()) for x in body.splitlines() if ASKED.fullmatch(x.strip())]
+    return [
+        {
+            "number": n,
+            "spec": m.group(1),
+            "spec_title": spec_title(repo, m.group(2), head),
+            "url": url,
+        }
+        for m in found
+    ] or unread
+
+
+def pipeline_document(repo: str, root: Path) -> dict:
+    """What waits for a person, from a fresh read of the open pull requests."""
+    now = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    found = pages(f"repos/{repo}/pulls?state=open")
+    doc: dict = {"schema": 1, "as_of": now, "ready": [], "approve": []}
+    if found is None:
+        doc["counts"] = {k: "unknown" for k in PIPELINE_COUNTS}
+        return doc
+    held = {k: [] for k in PIPELINE_COUNTS}
+    for pr in found:
+        names = {(x or {}).get("name") for x in pr.get("labels") or []}
+        for k in PIPELINE_COUNTS:
+            if f"agk:{k}" in names and isinstance(pr.get("number"), int):
+                held[k].append(pr)
+    doc["counts"] = {k: len(v) for k, v in held.items()}
+    doc["ready"] = [
+        {
+            "number": p["number"],
+            "summary": summary_of(p.get("body")),
+            "url": str(p.get("html_url") or ""),
+        }
+        for p in held["ready"]
+    ]
+    for pr in held["approve"]:
+        doc["approve"] += approve_items(repo, pr, root)
+    return doc
+
+
+def write_pipeline(repo: str, root: Path) -> None:
+    """Write `pipeline.json` (rule 2); a failure is reported and fails no routing (rule 4)."""
+    target = Path(os.environ.get("AGK_PIPELINE_FILE") or "pipeline.json")
+    try:
+        doc = pipeline_document(repo, root)
+        target.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    except (OSError, CheckError, ValueError, KeyError, TypeError):
+        print("skipped rule 4: the pipeline document was not written")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     dry = "--dry-run" in args
@@ -398,6 +687,12 @@ def main(argv: list[str] | None = None) -> int:
         numbers = [int(rest[1])]
     else:
         numbers = targets(os.environ.get("GITHUB_EVENT_NAME", ""), event, repo, default)
+    try:
+        required = required_checks(root)
+        agent_apps(root)
+    except CheckError as exc:
+        print(f"FAIL {NAME}: {exc}")
+        return 1
     labels = Labels(repo)
     failed = False
     try:
@@ -409,13 +704,15 @@ def main(argv: list[str] | None = None) -> int:
                 failed = True
         if rest == ["--branch"] or (not rest and on_default_branch(name, event, default)):
             try:
-                route_branch(repo, default, labels, dry)
+                route_branch(repo, default, labels, dry, required)
             except CheckError as exc:
                 print(f"FAIL {NAME}: {exc}")
                 failed = True
     except ReadOnly:
         print("skipped (read-only token)")
-        return 0
+        failed = False
+    if not dry:
+        write_pipeline(repo, root)
     return 1 if failed else 0
 
 

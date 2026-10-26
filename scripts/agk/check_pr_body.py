@@ -8,7 +8,10 @@ the pull request is marked ready for review (SPEC-0033 rule 2); any other value 
 SPEC-0034 rule 9: `--issues FILE` is a saved copy of the repository's issues (a JSON list, as
 `gh api repos/OWNER/REPO/issues` returns it); when it holds an issue labelled `agk-brief` (a pull
 request does not count) the body needs `Brief: #n`. A body whose `Build-state row:` sets a
-requirement to `done` needs `Closes #n`. Messages name the rule, never a value. Files only."""
+requirement to `done` needs `Closes #n`. SPEC-0036 rule 1: every body that is not a draft has
+exactly one line `Summary: <one sentence>` of 1 to 120 characters, and the message says which case
+found (missing, repeated with the count, empty, or too long with its length; brief #237). Messages
+name the rule, never a value or a word of the body. Files only."""
 
 from __future__ import annotations
 
@@ -23,6 +26,8 @@ DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 USAGE = "usage: check_pr_body.py [--draft VALUE] [--issues FILE] [FILE|-]"
 LINK = re.compile(r"#\d+")
 DONE = re.compile(r"\bREQ-\d{3}\s+done\b", re.IGNORECASE)
+SUMMARY = "Summary:"
+SUMMARY_MAX = 120
 
 
 def field(text: str, label: str) -> str | None:
@@ -45,6 +50,23 @@ def has_brief(path: str) -> bool:
         and any(isinstance(x, dict) and x.get("name") == "agk-brief" for x in i.get("labels") or [])
         for i in issues
     )
+
+
+def summary_problem(summaries: list[str]) -> str | None:
+    """What is wrong with the `Summary:` lines (SPEC-0036 rule 1): the case and a count, no text."""
+    rule = "SPEC-0036 rule 1: "
+    if not summaries:
+        return rule + "the 'Summary:' line is missing"
+    if len(summaries) > 1:
+        return rule + f"there are {len(summaries)} 'Summary:' lines; exactly one is required"
+    if not summaries[0]:
+        return rule + "the 'Summary:' line is empty"
+    if len(summaries[0]) > SUMMARY_MAX:
+        return (
+            rule
+            + f"the text after 'Summary:' is {len(summaries[0])} characters; at most {SUMMARY_MAX}"
+        )
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -74,6 +96,9 @@ def main(argv: list[str] | None = None) -> int:
     row = field(text, "Build-state row:")
     if not row or not DATE.search(row):
         problems.append("'Build-state row:' line with a YYYY-MM-DD date is required")
+    summaries = [x[len(SUMMARY) :].strip() for x in text.splitlines() if x.startswith(SUMMARY)]
+    if problem := summary_problem(summaries):
+        problems.append(problem)
     if "--issues" in options and has_brief(options["--issues"]):
         brief = field(text, "Brief:")
         if brief is None or not re.fullmatch(LINK, brief):
