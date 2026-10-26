@@ -1,0 +1,247 @@
+{
+  "schema": 7,
+  "week": "2026-W41",
+  "opening": {
+    "first": "2026-10-05",
+    "last": "2026-10-11",
+    "as_of": "2026-10-14"
+  },
+  "sections": {
+    "delivered": [
+      {
+        "kind": "pull-request-merged",
+        "number": 5,
+        "title": "Change number 5",
+        "merged_on": "2026-10-08",
+        "links": [
+          {
+            "to": "pull-request",
+            "url": "https://github.com/demo-org/demo-repo/pull/5"
+          }
+        ]
+      }
+    ],
+    "proven": [
+      {
+        "kind": "requirement-not-proven",
+        "id": "REQ-001",
+        "reasons": [
+          {
+            "reason": "no-merged-change"
+          }
+        ],
+        "links": [
+          {
+            "to": "file",
+            "url": "https://github.com/demo-org/demo-repo/blob/18d340f6b1398941b84c12b7c83b8e46608f3f9f/docs/requirements.md#L3"
+          }
+        ]
+      },
+      {
+        "kind": "planned-not-counted",
+        "count": 1,
+        "links": [
+          {
+            "to": "file",
+            "url": "https://github.com/demo-org/demo-repo/blob/18d340f6b1398941b84c12b7c83b8e46608f3f9f/docs/requirements.md"
+          }
+        ]
+      }
+    ],
+    "needs_you": [
+      {
+        "group": "spec",
+        "count": 1,
+        "items": [
+          {
+            "kind": "draft-spec",
+            "id": "SPEC-0002",
+            "title": "Draft",
+            "links": [
+              {
+                "to": "file",
+                "url": "https://github.com/demo-org/demo-repo/blob/18d340f6b1398941b84c12b7c83b8e46608f3f9f/docs/specs/0002-draft.md"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "group": "adr",
+        "count": 1,
+        "items": [
+          {
+            "kind": "proposed-adr",
+            "id": "ADR-0002",
+            "title": "Proposed",
+            "links": [
+              {
+                "to": "file",
+                "url": "https://github.com/demo-org/demo-repo/blob/18d340f6b1398941b84c12b7c83b8e46608f3f9f/docs/adr/0002-proposed.md"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "group": "question",
+        "count": 1,
+        "items": [
+          {
+            "kind": "question",
+            "id": "Q-X1-1",
+            "asked_in": "docs/runs/spec-0002-notes.md",
+            "links": [
+              {
+                "to": "file",
+                "url": "https://github.com/demo-org/demo-repo/blob/18d340f6b1398941b84c12b7c83b8e46608f3f9f/docs/runs/spec-0002-notes.md"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "group": "pull-request",
+        "count": 1,
+        "items": [
+          {
+            "kind": "pull-request-no-verdict",
+            "number": 7,
+            "title": "Change number 7",
+            "days": 9,
+            "links": [
+              {
+                "to": "pull-request",
+                "url": "https://github.com/demo-org/demo-repo/pull/7"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "at_risk": [
+      {
+        "kind": "pull-requests-open-long",
+        "entries": [
+          {
+            "number": 7,
+            "days": 9,
+            "title": "Change number 7"
+          }
+        ],
+        "count": 1,
+        "links": [
+          {
+            "to": "pull-request",
+            "url": "https://github.com/demo-org/demo-repo/pull/7"
+          }
+        ]
+      },
+      {
+        "kind": "requirements-without-brief",
+        "entries": [
+          {
+            "id": "REQ-002"
+          }
+        ],
+        "count": 1,
+        "links": [
+          {
+            "to": "file",
+            "url": "https://github.com/demo-org/demo-repo/blob/18d340f6b1398941b84c12b7c83b8e46608f3f9f/docs/requirements.md"
+          }
+        ]
+      }
+    ],
+    "cost": [
+      {
+        "kind": "pull-request-cost",
+        "number": 5,
+        "title": "Change number 5",
+        "hours": "72.0",
+        "fix_verdicts": 0,
+        "usage": "not-reported",
+        "links": [
+          {
+            "to": "pull-request",
+            "url": "https://github.com/demo-org/demo-repo/pull/5"
+          }
+        ]
+      },
+      {
+        "kind": "week-totals",
+        "merged": 1,
+        "hours": "72.0",
+        "hours_unknown": 0,
+        "fix_verdicts": 0,
+        "fix_verdicts_unknown": 0,
+        "behaviour_unchanged": 0,
+        "estimate": {
+          "within": 1,
+          "counted": 1
+        },
+        "busy": false,
+        "usage": "not-reported",
+        "usage_reported": 0,
+        "corrections": 0,
+        "shadow": "not-running",
+        "links": [
+          {
+            "to": "search",
+            "url": "https://github.com/demo-org/demo-repo/pulls?q=is%3Apr+is%3Amerged"
+          }
+        ]
+      }
+    ],
+    "flow": [
+      {
+        "kind": "flow-figures",
+        "open_builders": 0,
+        "max_builders": 3,
+        "taken_to_pull_request": "none",
+        "to_first_verdict": "48.0",
+        "verdict_to_cleared": "0.0",
+        "cleared_to_merge": "24.0",
+        "conflicts": 0,
+        "renumbers": 0,
+        "retakes": 0,
+        "links": [
+          {
+            "to": "search",
+            "url": "https://github.com/demo-org/demo-repo/pulls?q=is%3Apr+is%3Aopen"
+          }
+        ]
+      }
+    ]
+  },
+  "counts": {
+    "delivered": 0,
+    "proven": 0,
+    "needs_you": 4,
+    "at_risk": 2
+  },
+  "notices": [
+    {
+      "kind": "facts-commit",
+      "commit": "18d340f6b1398941b84c12b7c83b8e46608f3f9f",
+      "links": []
+    },
+    {
+      "kind": "kit-version",
+      "version": "1.0.0",
+      "links": []
+    },
+    {
+      "kind": "metrics-issue",
+      "state": "found",
+      "number": 3,
+      "title": "agk metrics 2026-W41",
+      "links": []
+    },
+    {
+      "kind": "drift-audit-issue",
+      "state": "none-found",
+      "links": []
+    }
+  ]
+}

@@ -50,7 +50,7 @@ export function schema1Form(source: any): any {
   document.schema = 1;
   delete document.counts;
   for (const item of document.sections.cost) {
-    for (const key of ["hours_unknown", "fix_verdicts_unknown", "usage", "usage_reported", "corrections"]) delete item[key];
+    for (const key of ["hours_unknown", "fix_verdicts_unknown", "usage", "usage_reported", "corrections", "shadow"]) delete item[key];
   }
   const later = ["pull-requests-stalled", "briefs-idle", "requirements-without-brief"];
   const laterUnknown = ["open briefs", "stalled pull requests", "requirements without a brief"];

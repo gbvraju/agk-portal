@@ -18,7 +18,7 @@ export interface ReportGroup {
   items: ReportItem[];
 }
 export interface ReportDocument {
-  schema: 1 | 2 | 3 | 4 | 5 | 6;
+  schema: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   week: string;
   opening: { first: string; last: string; as_of: string };
   sections: { delivered: ReportItem[]; proven: ReportItem[]; needs_you: ReportGroup[]; at_risk: ReportItem[]; cost: ReportItem[]; flow?: ReportItem[] };
@@ -146,9 +146,23 @@ const flowOf: Check = kinds({
   "flow-figures": { open_builders: intOrUnknown, max_builders: intOrUnknown, taken_to_pull_request: median, to_first_verdict: median, verdict_to_cleared: median, cleared_to_merge: median, conflicts: intOrUnknown, renumbers: intOrUnknown, retakes: intOrUnknown },
   ...UNKNOWN,
 });
+// Schema 7 (agk #228, REQ-042 build c) adds `shadow` to the totals: "not-running", "unknown", or the shadow review's counts of the
+// week and in total, each with its catch rate ("none" or "R/T (P%)"), and the counts of unpaired and unread.
+const shadowCounts = shape({
+  heads: count,
+  right_conductor_only: count,
+  right_shadow_only: count,
+  right_both: count,
+  wrong_conductor: count,
+  wrong_shadow: count,
+  unmarked_heads: count,
+  unmarked_findings: count,
+  catch_rate: (v) => typeof v === "string" && /^(none|\d+\/\d+ \(\d+\.\d%\))$/.test(v),
+});
+const shadow: Check = either(one("not-running", "unknown"), shape({ week: shadowCounts, total: shadowCounts, unpaired: count, unread: count }));
 const countOrUnknown: Check = either((v) => int(v) && (v as number) >= 0, one("unknown"));
 // The number of each section and the lists of the schema; `counts` (schema 3) has exactly the four keys.
-const documentOf = (schema: 1 | 2 | 3 | 4 | 5 | 6, lists: { needs: Check; atRisk: Check; cost: Check; flow?: Check }, counts: Record<string, Check> = {}): Check =>
+const documentOf = (schema: 1 | 2 | 3 | 4 | 5 | 6 | 7, lists: { needs: Check; atRisk: Check; cost: Check; flow?: Check }, counts: Record<string, Check> = {}): Check =>
   shape({
     schema: one(schema),
     ...counts,
@@ -183,6 +197,19 @@ const documents: Record<number, Check> = {
         { "pull-requests-stalled": { entries: list(shape({ number: int }, { title: str })), count }, "briefs-idle": { entries: list(shape({ number: int, title: str, days: int })), count }, "requirements-without-brief": { entries: list(shape({ id: str })), count } },
       ),
       cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }, { usage }, { usage, usage_reported: count, corrections: either(count, one("unknown")) }),
+      flow: flowOf,
+    },
+    countsOf,
+  ),
+  7: documentOf(
+    7,
+    {
+      needs: needs4,
+      atRisk: atRiskOf(
+        { count },
+        { "pull-requests-stalled": { entries: list(shape({ number: int }, { title: str })), count }, "briefs-idle": { entries: list(shape({ number: int, title: str, days: int })), count }, "requirements-without-brief": { entries: list(shape({ id: str })), count } },
+      ),
+      cost: costOf({ hours_unknown: count }, { fix_verdicts_unknown: count }, { usage }, { usage, usage_reported: count, corrections: either(count, one("unknown")), shadow }),
       flow: flowOf,
     },
     countsOf,
