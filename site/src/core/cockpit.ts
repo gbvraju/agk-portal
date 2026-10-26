@@ -28,7 +28,21 @@ const cut = (text: string): string => {
   const letters = Array.from(text);
   return letters.length > MAX_SENTENCE ? `${letters.slice(0, MAX_SENTENCE).join("")}…` : text;
 };
-const asOf = (document: PipelineDocument): string => `<span class="asof">as of ${escapeText(document.as_of)}</span>`;
+// The time of the data in plain words, UTC (the page is rendered on the server and does not know the viewer's zone): "26 Oct 2026,
+// 02:48 UTC", from the digits of the data's own `YYYY-MM-DDTHH:MM:SSZ`, with nothing computed. A time that is not a real one
+// (a month above 12, a day above 31, an hour above 23, a minute above 59) stays as the data gives it. The data's own value
+// stays in the time element.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export function plainTime(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):\d{2}Z$/.exec(value);
+  if (m === null) return value;
+  const [year, month, day, hour, minute] = [m[1], Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])] as [string, number, number, number, number];
+  const real = month >= 1 && month <= 12 && day >= 1 && day <= daysIn(Number(year), month) && hour <= 23 && minute <= 59;
+  return real ? `${day} ${MONTHS[month - 1]} ${year}, ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")} UTC` : value;
+}
+// The most days a month can have in that year: a day past it is not a real date.
+const daysIn = (year: number, month: number): number => (month === 2 ? (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28) : [4, 6, 9, 11].includes(month) ? 30 : 31);
+const asOf = (document: PipelineDocument): string => `<span class="asof">as of <time datetime="${escapeText(document.as_of)}">${escapeText(plainTime(document.as_of))}</time></span>`;
 const projectLink = (name: string): string => `<a href="https://github.com/${escapeText(name)}">${escapeText(name)}</a>`;
 const unknownLine = (name: string, reason: string): string => `<li>${projectLink(name)}: ${NOT_KNOWN}: ${escapeText(reason)}.</li>`;
 
@@ -56,10 +70,11 @@ function strip(name: string, document: PipelineDocument): string {
   const spans = COUNT_LABELS.map((key, n) => {
     const value = document.counts[key];
     const shown = value === "unknown" ? NOT_KNOWN : String(value);
-    // The separator belongs to the count it comes before, so no count leaves a stray comma; a 0 is muted and never hidden.
-    return `<span class="count${value === 0 ? " quiet" : ""}">${n === 0 ? "" : ", "}${labels[key]} ${shown}</span>`;
+    // The separator ends the count before it and stays with it (a count does not break inside); the last count has none, and the
+    // strip wraps only between counts. A 0 is muted and never hidden.
+    return `<span class="count${value === 0 ? " quiet" : ""}">${labels[key]} ${shown}${n < COUNT_LABELS.length - 1 ? "," : ""}</span>`;
   });
-  return `<li>${projectLink(name)}: ${spans.join("")} ${asOf(document)}</li>`;
+  return `<li>${projectLink(name)}: ${spans.join(" ")} ${asOf(document)}</li>`;
 }
 
 function part(heading: string, blocks: string[]): string {

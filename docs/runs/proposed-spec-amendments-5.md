@@ -151,3 +151,16 @@ SPEC-0010 is `docs/specs/0010-a-person-sees-what-waits-for-them-specs-to-approve
 6. Rule 5: a count of 0 is shown muted on every width, not hidden on a phone as SPEC-0009 rule 4 does, because a hidden count would leave its separator behind; each separator belongs to the count it comes before (the first count has none, each later count starts with ", "). This is the fallback the conductor named in the answer to Q-B24-1 item 4, since hiding a leading separator by CSS alone cannot be done cleanly within SPEC-0008.
 7. Tests: a line for rule 2 is added (REQ-110 AC4 and AC6), the line for rule 4 states the three forms and the line for rule 5 states the zero.
 8. Residual: the pipeline document exists, but a project shows it only after it has the kit version whose router publishes it.
+
+## Amendment 19 — SPEC-0010 rules 5, 7 and 10 and the Tests: the strip's separator and the time in plain words
+
+SPEC-0010 is `docs/specs/0010-a-person-sees-what-waits-for-them-specs-to-approve-and-pull.md`, applied by ADR-0038.
+
+**Reason.** The maintainer's phone screenshot of `/cockpit` (2026-10-26, brief #75) shows two faults of the cockpit built to SPEC-0010 as amended by Amendment 18. When the counts strip wraps, the next line starts with ", approve 0", because rule 5 (as amended) put the separator at the start of the next count's span. And the time shows as the data's raw `2026-10-26T02:48:20Z`, which is not plain words, and it breaks across lines.
+
+**Old text and new text.** (the words that change; the rest of each paragraph is as it is)
+
+1. Rule 5: "Each separator belongs to the count it comes before: the first count has none and each later count starts with ", "." becomes "Each separator ends the count before it and stays with it, so a count never breaks inside and no line of the strip starts with a comma: the last count has none, and the strip wraps only between counts." A 0 stays muted and never hidden.
+2. Rule 7: "shows "as of {as_of}" with the data's own value, placed as it is" becomes "shows "as of {time}", the time of the data in plain words, `D Mon YYYY, HH:MM UTC` (the day without a leading zero, the month as three letters, a 24-hour clock, always UTC, because the page is rendered on the server and does not know the viewer's zone), made from the digits of the data's own `as_of` with nothing computed; the data's own value stays in the `datetime` of a `<time>` element, and a time that is not a real one is shown as the data gives it. The time does not break across lines." The same time is used in every place the cockpit shows `as_of`.
+3. Rule 10: the phrase "as of {as_of}" becomes "as of {time}".
+4. Tests: the lines for rules 5 and 7 state the separator and the time format.

@@ -180,6 +180,7 @@ input{flex:1 1 auto;min-width:0;min-height:44px;padding:0 12px;border:1px solid 
 .project{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-top:1px solid var(--border)}
 .project:first-child{border-top:0}
 .weeklabel,.reason,.asof{color:var(--muted)}
+.asof{white-space:nowrap}
 .figure,.count{white-space:nowrap}
 .zero,.quiet{color:var(--muted)}
 .pill{display:inline-block;padding:0 10px;border-radius:999px;font-size:.85rem;font-weight:700;line-height:1.7}

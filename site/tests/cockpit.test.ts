@@ -202,7 +202,7 @@ test("REQ-110 AC2: Specs to approve: the spec's own title then waits for your ap
 test("REQ-110 AC3: In the pipeline: one strip per project with the six counts in order, a count and never a list, an unknown count as not known yet", async () => {
   const page = await pageOf(ok([{ name: "demo-org/demo-repo", result: found(fixture("busy")) }, { name: "demo-org/other", result: found(fixture("unreadable")) }]));
   const strips = lines(part(page, "In the pipeline")).map(textOf);
-  assert.deepEqual(strips, ["demo-org/demo-repo: review 2, fix 1, ci red 0, conflict 0, approve 1, ready 2 as of 2026-10-26T07:13:00Z", "demo-org/other: review not known yet, fix not known yet, ci red not known yet, conflict not known yet, approve not known yet, ready not known yet as of 2026-10-26T07:13:00Z"]);
+  assert.deepEqual(strips, ["demo-org/demo-repo: review 2, fix 1, ci red 0, conflict 0, approve 1, ready 2 as of 26 Oct 2026, 07:13 UTC", "demo-org/other: review not known yet, fix not known yet, ci red not known yet, conflict not known yet, approve not known yet, ready not known yet as of 26 Oct 2026, 07:13 UTC"]);
   assert.doesNotMatch(part(page, "In the pipeline"), /pull\/\d+/, "a count, not a list");
 });
 
@@ -210,7 +210,8 @@ test("REQ-110 AC3: a count of 0 is a known value, shown muted on every width, an
   const page = await pageOf(ok([{ name: "demo-org/demo-repo", result: found(fixture("busy")) }, { name: "demo-org/other", result: found(fixture("unreadable")) }]));
   const strip = lines(part(page, "In the pipeline"))[0] as string;
   const spans = [...strip.matchAll(/<span class="count( quiet)?">(.*?)<\/span>/g)].map((m) => [m[1] !== undefined, (m[2] as string).replace(/&nbsp;/g, " ")]);
-  assert.deepEqual(spans, [[false, "review 2"], [false, ", fix 1"], [true, ", ci red 0"], [true, ", conflict 0"], [false, ", approve 1"], [false, ", ready 2"]], "each separator belongs to the count it comes before");
+  assert.deepEqual(spans, [[false, "review 2,"], [false, "fix 1,"], [true, "ci red 0,"], [true, "conflict 0,"], [false, "approve 1,"], [false, "ready 2"]], "each separator ends the count before it, and the last count has none");
+  assert.match(strip, /<\/span> <span class="count/, "counts are separated by a space, so the strip may wrap between two counts");
   const unknown = lines(part(page, "In the pipeline"))[1] as string;
   assert.doesNotMatch(unknown, /class="count quiet"/);
   const css = await (await createApp(createCore({ config, now: () => NOW }))(new Request("https://portal.example/style.css"))).text();
@@ -218,13 +219,18 @@ test("REQ-110 AC3: a count of 0 is a known value, shown muted on every width, an
   assert.doesNotMatch(strip, /class="[^"]*\bzero\b/, "the strip's zeros are never the class the stylesheet hides on a phone");
 });
 
-test("REQ-110 AC3: no stray punctuation: a 0 as the first or the last count leaves no leading or trailing comma, in the text or in the markup", async () => {
+test("REQ-110 AC3: no stray punctuation: no count's span starts with a comma, the last count has none, and a count and its comma stay together", async () => {
   for (const [name, counts] of [["last", { review: 3, fix: 2, "ci-red": 1, conflict: 4, approve: 5, ready: 0 }], ["first", { review: 0, fix: 2, "ci-red": 1, conflict: 4, approve: 5, ready: 6 }], ["all", { review: 0, fix: 0, "ci-red": 0, conflict: 0, approve: 0, ready: 0 }]] as const) {
     const doc = clone(fixture("quiet"));
     doc.counts = counts;
     const strip = lines(part(await pageOf(ok([{ name: "demo-org/demo-repo", result: found(doc) }])), "In the pipeline"))[0] as string;
     const text = textOf(strip);
     assert.doesNotMatch(text, /,\s*as of|,\s*,|:\s*,/, `${name}: no comma before as of, doubled or after the colon`);
+    const spans = [...strip.matchAll(/<span class="count[^"]*">(.*?)<\/span>/g)].map((m) => m[1] as string);
+    assert.equal(spans.length, 6, name);
+    assert.ok(spans.every((t) => !t.startsWith(",") && !t.startsWith(" ")), `${name}: no count starts with a comma or a space`);
+    assert.ok(spans.slice(0, 5).every((t) => t.endsWith(",")) && !(spans[5] as string).endsWith(","), `${name}: each count but the last ends with its comma`);
+    assert.equal((strip.match(/as of <time/g) ?? []).length, 1);
     const hidden = [...strip.matchAll(/<span class="[^"]*\bzero\b[^"]*">/g)];
     assert.equal(hidden.length, 0, `${name}: nothing in the strip is hidden, so nothing can leave a separator behind`);
   }
@@ -247,18 +253,42 @@ test("REQ-110 AC4: a project with no readable pipeline data stands under each pa
   const gone = "demo-org/gone: not known yet: no pipeline document exists.";
   assert.deepEqual(lines(part(page, "Needs your merge")).map(textOf), [gone]);
   assert.deepEqual(lines(part(page, "Specs to approve")).map(textOf), [gone]);
-  assert.deepEqual(lines(part(page, "In the pipeline")).map(textOf), [gone, "demo-org/quiet: review 0, fix 0, ci red 0, conflict 0, approve 0, ready 0 as of 2026-10-26T07:13:00Z"]);
+  assert.deepEqual(lines(part(page, "In the pipeline")).map(textOf), [gone, "demo-org/quiet: review 0, fix 0, ci red 0, conflict 0, approve 0, ready 0 as of 26 Oct 2026, 07:13 UTC"]);
   assert.doesNotMatch(page, /Nothing waits for you\./, "an unknown project is not nothing");
   assert.doesNotMatch(part(page, "In the pipeline").split(gone)[1]?.split("</li>")[0] ?? "", /\b0\b/, "no number of the unknown project");
 });
 
-test("REQ-110 AC7: each project's block states the time the data is as of, placed as it is, and no age is computed or limit applied", async () => {
+test("REQ-110 AC7: each project's block states the time the data is as of in plain words, UTC, keeps the data's own value in a time element, and applies no age limit", async () => {
   const old = clone(fixture("busy"));
   old.as_of = "2020-01-02T03:04:05Z";
   const page = await pageOf(ok([{ name: "demo-org/demo-repo", result: found(old) }]));
-  assert.equal((page.match(/as of 2020-01-02T03:04:05Z/g) ?? []).length, 3, "in each part the project stands in");
-  assert.doesNotMatch(page, /ago|stale|old|days/i);
+  assert.equal((page.match(/as of <time datetime="2020-01-02T03:04:05Z">2 Jan 2020, 03:04 UTC<\/time>/g) ?? []).length, 3, "in each part the project stands in, the day without a leading zero");
+  assert.doesNotMatch(page, /T03:04:05Z<\/|>2020-01-02T/, "the raw time is not the text");
+  assert.doesNotMatch(page, /ago|stale|\bold\b|days/i);
   assert.match(part(page, "Needs your merge"), /reviewed, ready to merge/, "old data is still shown");
+});
+
+test("REQ-110 AC7: the time reads D Mon YYYY, HH:MM UTC for each month and the day's edges, and a time that is not a real one stays as the data gives it", async () => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  for (const [i, name] of months.entries()) {
+    const doc = clone(fixture("quiet"));
+    doc.as_of = `2026-${String(i + 1).padStart(2, "0")}-${i === 0 ? "31" : "09"}T${i === 1 ? "00:00:59" : i === 2 ? "23:59:00" : "12:05:00"}Z`;
+    const strip = textOf(lines(part(await pageOf(ok([{ name: "demo-org/demo-repo", result: found(doc) }])), "In the pipeline"))[0] as string);
+    const hours = i === 1 ? "00:00" : i === 2 ? "23:59" : "12:05";
+    assert.ok(strip.endsWith(`as of ${i === 0 ? "31" : "9"} ${name} 2026, ${hours} UTC`), `${name}: ${strip}`);
+  }
+  for (const odd of ["2026-13-45T25:61:61Z", "2026-02-30T10:00:00Z", "0000-00-00T00:00:00Z"]) {
+    const doc = clone(fixture("quiet"));
+    doc.as_of = odd;
+    const strip = lines(part(await pageOf(ok([{ name: "demo-org/demo-repo", result: found(doc) }])), "In the pipeline"))[0] as string;
+    assert.match(strip, new RegExp(`as of <time datetime="${odd}">${odd}</time>`), `${odd} is shown as given, not invented`);
+  }
+});
+
+test("REQ-110 AC8: the stylesheet keeps a count and the time unbroken: no line break inside either, so the strip wraps only between counts", async () => {
+  const css = await (await createApp(createCore({ config, now: () => NOW }))(new Request("https://portal.example/style.css"))).text();
+  assert.match(css, /\.figure,\.count\{white-space:nowrap\}/, "a count does not break inside");
+  assert.match(css, /\.asof\{[^}]*white-space:nowrap[^}]*\}/, "the time does not break inside");
 });
 
 test("REQ-110 AC1: a list over 5 lines of one project folds in a details element, its summary the project and the number of lines; 5 lines do not fold", async () => {
